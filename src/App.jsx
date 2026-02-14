@@ -496,12 +496,6 @@ function Home({ onStart, history, onResetHistory, onOpenRanking }) {
           </div>
         </div>
 
-        <div className="hintRow">
-          <span className="chip">✨ たのしく 20語ずつ</span>
-          <span className="chip">🔊 英語読み上げ</span>
-          <span className="chip">🧠 弱点ランキング</span>
-        </div>
-
         <div className="listBox" style={{ marginTop: 12 }}>
           <strong>📊 学習履歴</strong>
           <div style={{ marginTop: 6 }}>
@@ -523,19 +517,40 @@ function Home({ onStart, history, onResetHistory, onOpenRanking }) {
           </div>
         </div>
 
-        <div className="grid" style={{ marginTop: 14 }}>
-          <button className="cuteBtn" onClick={() => setSelected("dolch")}>
-            🍓 Dolch をやる
-          </button>
+        <div
+  style={{
+    display: "flex",
+    gap: "10px",
+    justifyContent: "center",
+    marginTop: "10px",
+    flexWrap: "wrap"
+  }}
+>
+  <button
+    className="cuteBtn"
+    style={{ flex: "1 1 30%" }}
+    onClick={() => setSelected("dolch")}
+  >
+    🍓 Dolch 220
+  </button>
 
-          <button className="cuteBtn" onClick={() => setSelected("fry")}>
-            🌈 Fry (First 100) をやる
-          </button>
+  <button
+    className="cuteBtn"
+    style={{ flex: "1 1 30%" }}
+    onClick={() => setSelected("fry")}
+  >
+    🌈 Fry 1000
+  </button>
 
-          <button className="cuteBtn primary" onClick={() => onStart(selected)}>
-            ▶ Start（20語）
-          </button>
-        </div>
+  <button
+    className="cuteBtn primary"
+    style={{ flex: "1 1 30%" }}
+    onClick={() => onStart(selected)}
+  >
+    ▶ Start 20
+  </button>
+</div>
+
       </div>
     </CuteShell>
   );
