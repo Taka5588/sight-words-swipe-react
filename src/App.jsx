@@ -478,33 +478,82 @@ function CuteShell({ children }) {
 /* ================== Pages ================== */
 
 function Home({ onStart, history, onResetHistory, onOpenRanking }) {
-
-
   return (
     <CuteShell>
       <div className="panel">
+        {/* タイトル */}
         <div className="titleRow">
           <div className="brand">
             <div className="logo" />
             <div>
               <p className="brandTitle">Sight Words Swipe</p>
-              <p className="brandSub">💖 右スワイプ＝わかる ／ 💧 左スワイプ＝わからない</p>
+              <p className="brandSub">
+                💖 右スワイプ＝わかる ／ 💧 左スワイプ＝わからない
+              </p>
             </div>
           </div>
         </div>
 
-        <div className="listBox" style={{ marginTop: 12 }}>
+        {/* 🔥 開始ボタン（先に表示） */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "16px",
+            alignItems: "center",
+            marginTop: "16px"
+          }}
+        >
+          <button
+            className="cuteBtn primary"
+            style={{ width: "90%", padding: "16px" }}
+            onClick={() => onStart("dolch")}
+          >
+            🍓 Dolch Sight Words 220
+            <br />
+            <span style={{ fontSize: "14px", fontWeight: "normal" }}>
+              （今すぐ20語スタート）
+            </span>
+          </button>
+
+          <button
+            className="cuteBtn"
+            style={{ width: "90%", padding: "16px" }}
+            onClick={() => onStart("fry")}
+          >
+            🌈 Fry Sight Words 1000
+            <br />
+            <span style={{ fontSize: "14px", fontWeight: "normal" }}>
+              （今すぐ20語スタート）
+            </span>
+          </button>
+        </div>
+
+        {/* 📊 学習履歴（下に移動） */}
+        <div className="listBox" style={{ marginTop: 20 }}>
           <strong>📊 学習履歴</strong>
           <div style={{ marginTop: 6 }}>
             <div>
               学習開始回数：<strong>{history.sessions}</strong>
             </div>
             <div>
-              最後に勉強：<strong>{formatJPDateTime(history.lastStudiedAt)}</strong>
+              最後に勉強：
+              <strong>
+                {history.lastStudiedAt
+                  ? formatJPDateTime(history.lastStudiedAt)
+                  : "まだありません"}
+              </strong>
             </div>
           </div>
 
-          <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <div
+            style={{
+              marginTop: 10,
+              display: "flex",
+              gap: 10,
+              flexWrap: "wrap"
+            }}
+          >
             <button className="pill" onClick={onOpenRanking}>
               🧠 弱い単語ランキングを見る
             </button>
@@ -513,56 +562,11 @@ function Home({ onStart, history, onResetHistory, onOpenRanking }) {
             </button>
           </div>
         </div>
-
-        <div
-  style={{
-    display: "flex",
-    gap: "10px",
-    justifyContent: "center",
-    marginTop: "10px",
-    flexWrap: "wrap"
-  }}
->
-<div
-  style={{
-    display: "flex",
-    flexDirection: "column",
-    gap: "16px",
-    alignItems: "center",
-    marginTop: "16px"
-  }}
->
-  <button
-    className="cuteBtn primary"
-    style={{ width: "90%", padding: "16px" }}
-    onClick={() => onStart("dolch")}
-  >
-    🍓 Dolch Sight Words 220
-    <br />
-    <span style={{ fontSize: "14px", fontWeight: "normal" }}>
-      （今すぐ20語スタート）
-    </span>
-  </button>
-
-  <button
-    className="cuteBtn"
-    style={{ width: "90%", padding: "16px" }}
-    onClick={() => onStart("fry")}
-  >
-    🌈 Fry Sight Words 1000
-    <br />
-    <span style={{ fontSize: "14px", fontWeight: "normal" }}>
-      （今すぐ20語スタート）
-    </span>
-  </button>
-</div>
-
-</div>
-
       </div>
     </CuteShell>
   );
 }
+
 
 function RankingPage({ history, onBack, onReviewWord, onReviewTopSet }) {
   const weakTop10 = useMemo(() => buildWeakRanking(history.wordStats, 10), [history.wordStats]);
