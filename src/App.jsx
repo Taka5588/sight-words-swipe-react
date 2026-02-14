@@ -478,7 +478,7 @@ function CuteShell({ children }) {
 /* ================== Pages ================== */
 
 function Home({ onStart, history, onResetHistory, onOpenRanking }) {
-  const [selected, setSelected] = useState("dolch");
+
 
   return (
     <CuteShell>
@@ -490,9 +490,6 @@ function Home({ onStart, history, onResetHistory, onOpenRanking }) {
               <p className="brandTitle">Sight Words Swipe</p>
               <p className="brandSub">💖 右スワイプ＝わかる ／ 💧 左スワイプ＝わからない</p>
             </div>
-          </div>
-          <div className="chip">
-            🎀 <strong>かわいく学習</strong>
           </div>
         </div>
 
@@ -526,29 +523,40 @@ function Home({ onStart, history, onResetHistory, onOpenRanking }) {
     flexWrap: "wrap"
   }}
 >
-  <button
-    className="cuteBtn"
-    style={{ flex: "1 1 30%" }}
-    onClick={() => setSelected("dolch")}
-  >
-    🍓 Dolch 220
-  </button>
-
-  <button
-    className="cuteBtn"
-    style={{ flex: "1 1 30%" }}
-    onClick={() => setSelected("fry")}
-  >
-    🌈 Fry 1000
-  </button>
-
+<div
+  style={{
+    display: "flex",
+    flexDirection: "column",
+    gap: "16px",
+    alignItems: "center",
+    marginTop: "16px"
+  }}
+>
   <button
     className="cuteBtn primary"
-    style={{ flex: "1 1 30%" }}
-    onClick={() => onStart(selected)}
+    style={{ width: "90%", padding: "16px" }}
+    onClick={() => onStart("dolch")}
   >
-    ▶ Start 20
+    🍓 Dolch Sight Words 220
+    <br />
+    <span style={{ fontSize: "14px", fontWeight: "normal" }}>
+      （今すぐ20語スタート）
+    </span>
   </button>
+
+  <button
+    className="cuteBtn"
+    style={{ width: "90%", padding: "16px" }}
+    onClick={() => onStart("fry")}
+  >
+    🌈 Fry Sight Words 1000
+    <br />
+    <span style={{ fontSize: "14px", fontWeight: "normal" }}>
+      （今すぐ20語スタート）
+    </span>
+  </button>
+</div>
+
 </div>
 
       </div>
