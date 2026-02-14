@@ -34,11 +34,13 @@ function repeatWord(word, n = 20) {
 function speak(text, lang = "en-US") {
   try {
     if (!("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
+    const synth = window.speechSynthesis;
+    synth.cancel();
+    synth.resume();
     const u = new SpeechSynthesisUtterance(text);
     u.lang = lang;
     u.rate = 0.95;
-    window.speechSynthesis.speak(u);
+    setTimeout(() => synth.speak(u), 120);
   } catch {
     // ignore
   }
@@ -64,7 +66,8 @@ function loadHistory() {
     return {
       sessions: Number(parsed.sessions ?? 0),
       lastStudiedAt: parsed.lastStudiedAt ?? null,
-      wordStats: typeof parsed.wordStats === "object" && parsed.wordStats ? parsed.wordStats : {},
+      wordStats:
+        typeof parsed.wordStats === "object" && parsed.wordStats ? parsed.wordStats : {},
     };
   } catch {
     return emptyHistory();
@@ -79,7 +82,10 @@ function formatJPDateTime(iso) {
   if (!iso) return "なし";
   try {
     const d = new Date(iso);
-    return new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium", timeStyle: "short" }).format(d);
+    return new Intl.DateTimeFormat("ja-JP", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(d);
   } catch {
     return "なし";
   }
@@ -252,17 +258,9 @@ function CuteShell({ children }) {
           user-select:none;
           white-space:nowrap;
         }
-        .chip strong{ font-weight: 1000; }
 
         .grid{ display:grid; gap:10px; }
         .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-        .hintRow{
-          display:flex;
-          justify-content:center;
-          gap:10px;
-          flex-wrap:wrap;
-          margin: 10px 0 2px;
-        }
 
         .cuteBtn{
           width:100%;
@@ -481,27 +479,24 @@ function Home({ onStart, history, onResetHistory, onOpenRanking }) {
   return (
     <CuteShell>
       <div className="panel">
-        {/* タイトル */}
         <div className="titleRow">
           <div className="brand">
             <div className="logo" />
             <div>
               <p className="brandTitle">Sight Words Swipe</p>
-              <p className="brandSub">
-                💖 右スワイプ＝わかる ／ 💧 左スワイプ＝わからない
-              </p>
+              <p className="brandSub">💖 右スワイプ＝わかる ／ 💧 左スワイプ＝わからない</p>
             </div>
           </div>
         </div>
 
-        {/* 🔥 開始ボタン（先に表示） */}
+        {/* Start Buttons */}
         <div
           style={{
             display: "flex",
             flexDirection: "column",
             gap: "16px",
             alignItems: "center",
-            marginTop: "16px"
+            marginTop: "16px",
           }}
         >
           <button
@@ -527,9 +522,21 @@ function Home({ onStart, history, onResetHistory, onOpenRanking }) {
               （今すぐ20語スタート）
             </span>
           </button>
+
+          <button
+            className="cuteBtn"
+            style={{ width: "90%", padding: "16px" }}
+            onClick={() => onStart("choice")}
+          >
+            🧩 三択クイズモード
+            <br />
+            <span style={{ fontSize: "14px", fontWeight: "normal" }}>
+              （英語⇄日本語 切替OK）
+            </span>
+          </button>
         </div>
 
-        {/* 📊 学習履歴（下に移動） */}
+        {/* History */}
         <div className="listBox" style={{ marginTop: 20 }}>
           <strong>📊 学習履歴</strong>
           <div style={{ marginTop: 6 }}>
@@ -539,21 +546,12 @@ function Home({ onStart, history, onResetHistory, onOpenRanking }) {
             <div>
               最後に勉強：
               <strong>
-                {history.lastStudiedAt
-                  ? formatJPDateTime(history.lastStudiedAt)
-                  : "まだありません"}
+                {history.lastStudiedAt ? formatJPDateTime(history.lastStudiedAt) : "まだありません"}
               </strong>
             </div>
           </div>
 
-          <div
-            style={{
-              marginTop: 10,
-              display: "flex",
-              gap: 10,
-              flexWrap: "wrap"
-            }}
-          >
+          <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button className="pill" onClick={onOpenRanking}>
               🧠 弱い単語ランキングを見る
             </button>
@@ -566,7 +564,6 @@ function Home({ onStart, history, onResetHistory, onOpenRanking }) {
     </CuteShell>
   );
 }
-
 
 function RankingPage({ history, onBack, onReviewWord, onReviewTopSet }) {
   const weakTop10 = useMemo(() => buildWeakRanking(history.wordStats, 10), [history.wordStats]);
@@ -649,6 +646,137 @@ function RankingPage({ history, onBack, onReviewWord, onReviewTopSet }) {
   );
 }
 
+/* ================== Choice Quiz ================== */
+
+function pickWrongChoices(allWords, correctWord, count = 2) {
+  const correct = normalizeWord(correctWord);
+  const pool = allWords.map(normalizeWord).filter(Boolean).filter((w) => w !== correct);
+  return shuffle(pool).slice(0, count);
+}
+
+function ChoiceQuiz({ listLabel, listWords, onHome }) {
+  const [dir, setDir] = useState("enToJa"); // "enToJa" | "jaToEn"
+  const [qIndex, setQIndex] = useState(0);
+  const [score, setScore] = useState({ ok: 0, ng: 0 });
+
+  const [burstOn, setBurstOn] = useState(false);
+  const [burstSeed, setBurstSeed] = useState(0);
+
+  const allWords = useMemo(() => {
+    // listWords may be DOLCH or FRY_100
+    const unique = Array.from(new Set(listWords.map(normalizeWord).filter(Boolean)));
+    return unique;
+  }, [listWords]);
+
+  const currentWord = allWords[qIndex % Math.max(1, allWords.length)] || "";
+
+  const promptText = useMemo(() => {
+    if (!currentWord) return "";
+    if (dir === "enToJa") return currentWord;
+    return JA[currentWord] ?? "（訳未登録）";
+  }, [currentWord, dir]);
+
+  const correctChoice = useMemo(() => {
+    if (!currentWord) return "";
+    if (dir === "enToJa") return JA[currentWord] ?? "（訳未登録）";
+    return currentWord;
+  }, [currentWord, dir]);
+
+  const choices = useMemo(() => {
+    if (!currentWord) return [];
+    if (dir === "enToJa") {
+      // choices are Japanese strings
+      const wrongWords = pickWrongChoices(allWords, currentWord, 2);
+      const wrongJa = wrongWords.map((w) => JA[w] ?? "（訳未登録）");
+      return shuffle([correctChoice, ...wrongJa]);
+    } else {
+      // choices are English words
+      const wrong = pickWrongChoices(allWords, currentWord, 2);
+      return shuffle([correctChoice, ...wrong]);
+    }
+  }, [allWords, currentWord, correctChoice, dir]);
+
+  const doBurst = () => {
+    setBurstSeed((s) => s + 1);
+    setBurstOn(true);
+    setTimeout(() => setBurstOn(false), 950);
+  };
+
+  const answer = (choice) => {
+    const isOk = String(choice) === String(correctChoice);
+    if (isOk) {
+      setScore((s) => ({ ...s, ok: s.ok + 1 }));
+      doBurst();
+    } else {
+      setScore((s) => ({ ...s, ng: s.ng + 1 }));
+    }
+    setQIndex((i) => i + 1);
+  };
+
+  return (
+    <CuteShell>
+      <SparkBurst show={burstOn} seed={burstSeed} />
+      <div className="panel">
+        <div className="titleRow">
+          <div className="brand">
+            <div className="logo" />
+            <div>
+              <p className="brandTitle">🧩 三択クイズ</p>
+              <p className="brandSub">
+                {listLabel} / {dir === "enToJa" ? "英語 → 日本語" : "日本語 → 英語"}
+              </p>
+            </div>
+          </div>
+
+          <button className="pill" onClick={onHome}>
+            🏠 Home
+          </button>
+        </div>
+
+        <div className="progressRow">
+          <span className="chip">✅ {score.ok}</span>
+          <span className="chip">❌ {score.ng}</span>
+          <button
+            className="pill"
+            onClick={() => setDir((d) => (d === "enToJa" ? "jaToEn" : "enToJa"))}
+          >
+            🔁 切替
+          </button>
+        </div>
+
+        <div className="wordCard" style={{ height: 260 }}>
+          <div className="wordText" style={{ fontSize: dir === "enToJa" ? 72 : 44 }}>
+            {promptText}
+          </div>
+          <div className="swipeHint" style={{ justifyContent: "center" }}>
+            <span>答えをタップしてね</span>
+          </div>
+        </div>
+
+        <div className="grid" style={{ marginTop: 12 }}>
+          {choices.map((c, idx) => (
+            <button key={`${c}_${idx}`} className="cuteBtn" onClick={() => answer(c)}>
+              {c}
+            </button>
+          ))}
+        </div>
+
+        <div className="toolbar">
+          {dir === "enToJa" ? (
+            <button className="pill" onClick={() => currentWord && speak(currentWord, "en-US")}>
+              🔊 英語
+            </button>
+          ) : (
+            <button className="pill" onClick={() => currentWord && speak(currentWord, "en-US")}>
+              🔊 英語（答え）
+            </button>
+          )}
+        </div>
+      </div>
+    </CuteShell>
+  );
+}
+
 /* ================== SwipeGame ================== */
 
 function SwipeGame({
@@ -660,7 +788,7 @@ function SwipeGame({
   onLogKnown,
   onLogUnknown,
   reviewWord,
-  reviewSetWords, // ✅ TOP20セット復習の時に入る（配列）
+  reviewSetWords,
 }) {
   const [index, setIndex] = useState(0);
   const [known, setKnown] = useState([]);
@@ -714,7 +842,9 @@ function SwipeGame({
     trackMouse: true,
   });
 
-  const progressPct = words.length ? Math.min(100, Math.round(((index + 1) / words.length) * 100)) : 0;
+  const progressPct = words.length
+    ? Math.min(100, Math.round(((index + 1) / words.length) * 100))
+    : 0;
 
   if (done) {
     const isReviewWord = !!reviewWord;
@@ -740,7 +870,7 @@ function SwipeGame({
             <div className="chip">🏆 Result</div>
           </div>
 
-          <div className="hintRow">
+          <div style={{ display: "flex", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
             <span className="chip">
               💖 わかる：<strong>{known.length}</strong>
             </span>
@@ -840,7 +970,7 @@ function SwipeGame({
 /* ================== App ================== */
 
 export default function App() {
-  // home / ranking / game
+  // home / ranking / game / choice
   const [mode, setMode] = useState("home");
 
   // "dolch" / "fry" / "reviewWord" / "reviewSet"
@@ -859,7 +989,21 @@ export default function App() {
     saveHistory(history);
   }, [history]);
 
+  const bumpSession = () => {
+    setHistory((h) => ({
+      ...h,
+      sessions: h.sessions + 1,
+      lastStudiedAt: new Date().toISOString(),
+    }));
+  };
+
   const startNormal = (selected) => {
+    if (selected === "choice") {
+      setMode("choice");
+      bumpSession();
+      return;
+    }
+
     setPlayType(selected);
     setReviewWord(null);
     setReviewSetWords([]);
@@ -870,12 +1014,7 @@ export default function App() {
     setWords(first20);
     setGameKey((k) => k + 1);
     setMode("game");
-
-    setHistory((h) => ({
-      ...h,
-      sessions: h.sessions + 1,
-      lastStudiedAt: new Date().toISOString(),
-    }));
+    bumpSession();
   };
 
   const startReviewWord = (word) => {
@@ -889,34 +1028,22 @@ export default function App() {
     setWords(repeatWord(w, 20));
     setGameKey((k) => k + 1);
     setMode("game");
-
-    setHistory((h) => ({
-      ...h,
-      sessions: h.sessions + 1,
-      lastStudiedAt: new Date().toISOString(),
-    }));
+    bumpSession();
   };
 
   const startReviewTopSet = (wordList) => {
-  const arr = (wordList || []).map(normalizeWord).filter(Boolean);
-  if (arr.length === 0) return;
+    const arr = (wordList || []).map(normalizeWord).filter(Boolean);
+    if (arr.length === 0) return;
 
-  setPlayType("reviewSet");
-  setReviewWord(null);
-  setReviewSetWords(arr);
+    setPlayType("reviewSet");
+    setReviewWord(null);
+    setReviewSetWords(arr);
 
-  // ✅ 復習は毎回シャッフル
-  setWords(shuffle(arr));
-  setGameKey((k) => k + 1);
-  setMode("game");
-
-  setHistory((h) => ({
-    ...h,
-    sessions: h.sessions + 1,
-    lastStudiedAt: new Date().toISOString(),
-  }));
-};
-
+    setWords(shuffle(arr));
+    setGameKey((k) => k + 1);
+    setMode("game");
+    bumpSession();
+  };
 
   const addMore20 = () => {
     if (playType === "reviewWord" && reviewWord) {
@@ -925,11 +1052,9 @@ export default function App() {
     }
 
     if (playType === "reviewSet" && reviewSetWords.length > 0) {
-  // ✅ TOP20をさらに1周追加（毎回シャッフル）
-  setWords((prev) => [...prev, ...shuffle(reviewSetWords)]);
-  return;
-}
-
+      setWords((prev) => [...prev, ...shuffle(reviewSetWords)]);
+      return;
+    }
 
     setWords((prev) => {
       const more = pickMore(baseList, prev, 20);
@@ -942,40 +1067,25 @@ export default function App() {
       setWords(repeatWord(reviewWord, 20));
       setGameKey((k) => k + 1);
       setMode("game");
-      setHistory((h) => ({
-        ...h,
-        sessions: h.sessions + 1,
-        lastStudiedAt: new Date().toISOString(),
-      }));
+      bumpSession();
       return;
     }
 
     if (playType === "reviewSet" && reviewSetWords.length > 0) {
-  // ✅ 次の周回（毎回シャッフル）
-  setWords(shuffle(reviewSetWords));
-  setGameKey((k) => k + 1);
-  setMode("game");
-  setHistory((h) => ({
-    ...h,
-    sessions: h.sessions + 1,
-    lastStudiedAt: new Date().toISOString(),
-  }));
-  return;
-}
-
+      setWords(shuffle(reviewSetWords));
+      setGameKey((k) => k + 1);
+      setMode("game");
+      bumpSession();
+      return;
+    }
 
     const next20 = pickMore(baseList, [], 20);
     setWords(next20);
     setGameKey((k) => k + 1);
     setMode("game");
-    setHistory((h) => ({
-      ...h,
-      sessions: h.sessions + 1,
-      lastStudiedAt: new Date().toISOString(),
-    }));
+    bumpSession();
   };
 
-  // ✅ 単語ごとの履歴のみ更新
   const logWord = (word, type) => {
     const w = normalizeWord(word);
     if (!w) return;
@@ -1013,6 +1123,18 @@ export default function App() {
     );
   }
 
+  if (mode === "choice") {
+    // Default choice list: Dolch + Fry merged (more fun). You can change later.
+    const merged = useMemo(() => [...DOLCH, ...FRY_100], []);
+    return (
+      <ChoiceQuiz
+        listLabel="DOLCH+FRY"
+        listWords={merged}
+        onHome={() => setMode("home")}
+      />
+    );
+  }
+
   if (mode === "home") {
     return (
       <Home
@@ -1025,7 +1147,13 @@ export default function App() {
   }
 
   const titleLabel =
-    playType === "fry" ? "FRY" : playType === "dolch" ? "DOLCH" : playType === "reviewWord" ? "REVIEW" : "REVIEW SET";
+    playType === "fry"
+      ? "FRY"
+      : playType === "dolch"
+      ? "DOLCH"
+      : playType === "reviewWord"
+      ? "REVIEW"
+      : "REVIEW SET";
 
   return (
     <SwipeGame
