@@ -1129,16 +1129,31 @@ export default function App() {
     );
   }
 
-  if (mode === "choice") {
-    // ✅ ChoiceQuiz が App.jsx 内に定義されている前提です（すでに入れているはず）
-    return (
-      <ChoiceQuiz
-        listLabel="DOLCH+FRY"
-        listWords={mergedChoiceList}
-        onHome={() => setMode("home")}
-      />
-    );
-  }
+ if (mode === "choice") {
+  return (
+    <CuteShell>
+      <div className="panel">
+        <div className="titleRow">
+          <div className="brand">
+            <div className="logo" />
+            <div>
+              <p className="brandTitle">🧩 三択クイズモード</p>
+              <p className="brandSub">現在準備中…</p>
+            </div>
+          </div>
+          <button className="pill" onClick={() => setMode("home")}>
+            ◀ Home
+          </button>
+        </div>
+
+        <div style={{ marginTop: 40, textAlign: "center", fontWeight: 900 }}>
+          三択クイズは次のアップデートで実装します 🎉
+        </div>
+      </div>
+    </CuteShell>
+  );
+}
+
 
   if (mode === "home") {
     return (
