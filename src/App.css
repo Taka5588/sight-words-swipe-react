@@ -983,7 +983,9 @@ export default function App() {
 
   const [history, setHistory] = useState(() => loadHistory());
 
+  // ✅ Hooksは必ずトップレベルで呼ぶ（条件分岐の中に入れない）
   const baseList = useMemo(() => (playType === "dolch" ? DOLCH : FRY_100), [playType]);
+  const mergedChoiceList = useMemo(() => [...DOLCH, ...FRY_100], []);
 
   useEffect(() => {
     saveHistory(history);
@@ -998,6 +1000,7 @@ export default function App() {
   };
 
   const startNormal = (selected) => {
+    // ✅ 三択は別モードへ
     if (selected === "choice") {
       setMode("choice");
       bumpSession();
@@ -1039,7 +1042,7 @@ export default function App() {
     setReviewWord(null);
     setReviewSetWords(arr);
 
-    setWords(shuffle(arr));
+    setWords(shuffle(arr)); // ✅ 復習は毎回シャッフル
     setGameKey((k) => k + 1);
     setMode("game");
     bumpSession();
@@ -1086,6 +1089,7 @@ export default function App() {
     bumpSession();
   };
 
+  // ✅ 単語ごとの履歴のみ更新
   const logWord = (word, type) => {
     const w = normalizeWord(word);
     if (!w) return;
@@ -1112,6 +1116,8 @@ export default function App() {
     saveHistory(empty);
   };
 
+  // ====== Pages ======
+
   if (mode === "ranking") {
     return (
       <RankingPage
@@ -1124,12 +1130,11 @@ export default function App() {
   }
 
   if (mode === "choice") {
-    // Default choice list: Dolch + Fry merged (more fun). You can change later.
-    const merged = useMemo(() => [...DOLCH, ...FRY_100], []);
+    // ✅ ChoiceQuiz が App.jsx 内に定義されている前提です（すでに入れているはず）
     return (
       <ChoiceQuiz
         listLabel="DOLCH+FRY"
-        listWords={merged}
+        listWords={mergedChoiceList}
         onHome={() => setMode("home")}
       />
     );
