@@ -880,20 +880,32 @@ function AppInner() {
     );
   }
 
-  if (mode === "choice") {
-    return <ChoiceGame onHome={() => setMode("home")} />;
-  }
+  if (mode === "ranking") {
+  return (
+    <RankingPage
+      history={history}
+      onBack={() => setMode("home")}
+      onReviewWord={(w) => startReviewWord(w)}
+      onReviewTopSet={(arr) => startReviewTopSet(arr)}
+    />
+  );
+}
 
-  if (mode === "home") {
-    return (
-      <Home
-        onStart={startNormal}
-        history={history}
-        onResetHistory={resetHistory}
-        onOpenRanking={() => setMode("ranking")}
-      />
-    );
-  }
+if (mode === "home") {
+  return (
+    <Home
+      onStart={startNormal}
+      history={history}
+      onResetHistory={resetHistory}
+      onOpenRanking={() => setMode("ranking")}
+    />
+  );
+}
+
+if (playType === "choice") {
+  return <ChoiceGame onHome={() => setMode("home")} />;
+}
+
 
   const titleLabel =
     playType === "fry"
