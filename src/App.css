@@ -663,8 +663,11 @@ function SwipeGame({
 /* ================== ChoiceGame ================== */
 
 function ChoiceGame({ onHome }) {
-  // ✅ 毎回リセットされないように初回だけ作る
-  const [quiz] = useState(() => shuffle(DOLCH).slice(0, 20));
+  const [quiz] = useState(() => {
+    const base = Array.isArray(DOLCH) ? DOLCH : [];
+    return shuffle(base).slice(0, 20);
+  });
+
   const [index, setIndex] = useState(0);
   const [score, setScore] = useState(0);
 
@@ -674,64 +677,51 @@ function ChoiceGame({ onHome }) {
     return (
       <CuteShell>
         <div className="panel">
-          <div className="titleRow">
-            <div className="brand">
-              <div className="logo" />
-              <div>
-                <p className="brandTitle">🎉 結果</p>
-                <p className="brandSub">三択クイズ 20問</p>
-              </div>
-            </div>
-            <button className="pill" onClick={onHome}>◀ Home</button>
-          </div>
-
-          <div className="listBox" style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 18, fontWeight: 1000 }}>正解数</div>
-            <div style={{ fontSize: 44, fontWeight: 1000, marginTop: 6 }}>{score} / 20</div>
-          </div>
-
-          <div className="grid" style={{ marginTop: 14 }}>
-            <button className="cuteBtn primary" onClick={onHome}>🏠 Home にもどる</button>
-          </div>
+          <h2>🎉 結果</h2>
+          <p>正解数: {score} / 20</p>
+          <button className="cuteBtn" onClick={onHome}>
+            🏠 Home
+          </button>
         </div>
       </CuteShell>
     );
   }
 
-  const correct = JA[current] || "（訳未登録）";
-  const pool = Object.values(JA).filter((j) => j && j !== correct);
-  const wrong2 = shuffle(pool).slice(0, 2);
+  // ✅ JAが存在しないケースを防御
+  const correct =
+    (JA && typeof JA === "object" && JA[current])
+      ? JA[current]
+      : "（訳未登録）";
+
+  const allTranslations =
+    JA && typeof JA === "object"
+      ? Object.values(JA).filter(Boolean)
+      : [];
+
+  const wrongPool = allTranslations.filter((j) => j !== correct);
+  const wrong2 = shuffle(wrongPool).slice(0, 2);
+
   const choices = shuffle([correct, ...wrong2]);
 
   const answer = (choice) => {
-    if (choice === correct) setScore((s) => s + 1);
+    if (choice === correct) {
+      setScore((s) => s + 1);
+    }
     setIndex((i) => i + 1);
   };
 
   return (
     <CuteShell>
       <div className="panel">
-        <div className="titleRow">
-          <div className="brand">
-            <div className="logo" />
-            <div>
-              <p className="brandTitle">🧩 三択クイズ</p>
-              <p className="brandSub">英語→日本語（3択）</p>
-            </div>
-          </div>
-          <button className="pill" onClick={onHome}>◀ Home</button>
-        </div>
-
-        <div className="progressRow" style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-          <span className="chip">{index + 1} / 20</span>
-          <span className="chip">✅ {score}</span>
-        </div>
+        <h2>🧩 三択クイズ</h2>
 
         <div className="wordCard" style={{ height: 240 }}>
-          <div className="wordText" style={{ fontSize: 64 }}>{current}</div>
+          <div className="wordText" style={{ fontSize: 64 }}>
+            {current}
+          </div>
         </div>
 
-        <div className="grid" style={{ marginTop: 12 }}>
+        <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 12 }}>
           {choices.map((c, i) => (
             <button key={i} className="cuteBtn" onClick={() => answer(c)}>
               {c}
@@ -739,13 +729,16 @@ function ChoiceGame({ onHome }) {
           ))}
         </div>
 
-        <div className="toolbar">
-          <button className="pill" onClick={() => speak(current, "en-US")}>🔊 英語</button>
+        <div style={{ marginTop: 20 }}>
+          <button className="pill" onClick={onHome}>
+            🏠 Home
+          </button>
         </div>
       </div>
     </CuteShell>
   );
 }
+
 
 /* ================== App ================== */
 
