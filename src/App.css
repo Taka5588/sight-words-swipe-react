@@ -13,20 +13,24 @@ function shuffle(arr) {
   }
   return a;
 }
+
 function normalizeWord(w) {
   return String(w ?? "").trim();
 }
+
 function pickMore(list, existingWords, n = 20) {
   const existing = new Set(existingWords.map(normalizeWord));
   const unique = Array.from(new Set(list.map(normalizeWord).filter(Boolean)));
   const candidates = unique.filter((w) => !existing.has(w));
   return shuffle(candidates).slice(0, Math.min(n, candidates.length));
 }
+
 function repeatWord(word, n = 20) {
   const w = normalizeWord(word);
   if (!w) return [];
   return Array.from({ length: n }, () => w);
 }
+
 function speak(text, lang = "en-US") {
   try {
     if (!("speechSynthesis" in window)) return;
@@ -47,6 +51,7 @@ const STORAGE_KEY = "sightWordsSwipeHistory_v5";
 function emptyHistory() {
   return { sessions: 0, lastStudiedAt: null, wordStats: {} };
 }
+
 function loadHistory() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -61,9 +66,11 @@ function loadHistory() {
     return emptyHistory();
   }
 }
+
 function saveHistory(h) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(h));
 }
+
 function formatJPDateTime(iso) {
   if (!iso) return "なし";
   try {
@@ -122,6 +129,7 @@ function buildWeakRanking(wordStats, topN = 10) {
     const unknown = Number(s?.unknown ?? 0);
     const total = known + unknown;
     if (total <= 0) continue;
+
     const unknownRate = unknown / total;
     rows.push({
       word,
@@ -148,7 +156,7 @@ function buildWeakRanking(wordStats, topN = 10) {
   return base.slice(0, topN);
 }
 
-/* ================== Error Boundary（黒画面を文字化） ================== */
+/* ================== Error Boundary ================== */
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -165,9 +173,9 @@ class ErrorBoundary extends React.Component {
     if (!this.state.hasError) return this.props.children;
 
     return (
-      <div style={{ padding: 16, fontFamily: "system-ui", color: "#111", background: "#fff" }}>
-        <h2 style={{ marginTop: 0 }}>⚠️ エラーが発生しました（黒画面の原因）</h2>
-        <p>下の内容をそのまま私に貼ってください。原因を特定して直します。</p>
+      <div style={{ padding: 16, fontFamily: "system-ui", color: "#111", background: "#fff", minHeight: "100vh" }}>
+        <h2 style={{ marginTop: 0 }}>⚠️ エラーが発生しました</h2>
+        <p>下の内容をそのまま私に貼ってください。</p>
         <div style={{ whiteSpace: "pre-wrap", background: "#f5f5f5", padding: 12, borderRadius: 8 }}>
           {this.state.message}
           {"\n\n"}
@@ -284,7 +292,10 @@ function CuteShell({ children }) {
           height: 320px;
           border-radius: 26px;
           border: 2px solid rgba(0,0,0,.14);
-          background: #fff;
+          background:
+            radial-gradient(380px 220px at 25% 20%, rgba(255,122,182,.12), transparent 55%),
+            radial-gradient(320px 220px at 75% 30%, rgba(127,231,214,.12), transparent 55%),
+            linear-gradient(180deg, #ffffff 0%, #fffdf6 100%);
           box-shadow: var(--shadow);
           display:grid;
           place-items:center;
@@ -315,6 +326,9 @@ function CuteShell({ children }) {
           font-weight: 1000;
           cursor:pointer;
           box-shadow: 0 10px 18px rgba(0,0,0,.08);
+        }
+        .pill.on{
+          background: linear-gradient(135deg, rgba(255,122,182,.35), rgba(127,231,214,.28));
         }
 
         .listBox{
@@ -349,6 +363,7 @@ function CuteShell({ children }) {
         .rankRight{ text-align:right; font-size: 12px; color: var(--muted); white-space: nowrap; }
         .pct{ font-size: 14px; font-weight: 1000; color: var(--ink); }
 
+        /* ✨ 正解キラキラ（下→上） */
         .sparkBurst{
           position: fixed; inset: 0;
           pointer-events: none; z-index: 9999; overflow: hidden;
@@ -401,7 +416,7 @@ function Home({ onStart, history, onResetHistory, onOpenRanking }) {
           <button className="cuteBtn" style={{ width: "90%", padding: 14 }} onClick={() => onStart("choice")}>
             🧩 三択クイズモード
             <br />
-            <span style={{ fontSize: 14, fontWeight: "normal" }}>（英語⇄日本語 切替OK）</span>
+            <span style={{ fontSize: 14, fontWeight: "normal" }}>（英語→日本語 3択）</span>
           </button>
         </div>
 
@@ -412,8 +427,7 @@ function Home({ onStart, history, onResetHistory, onOpenRanking }) {
               学習開始回数：<strong>{history.sessions}</strong>
             </div>
             <div>
-              最後に勉強：
-              <strong>{history.lastStudiedAt ? formatJPDateTime(history.lastStudiedAt) : "まだありません"}</strong>
+              最後に勉強：<strong>{history.lastStudiedAt ? formatJPDateTime(history.lastStudiedAt) : "まだありません"}</strong>
             </div>
           </div>
 
@@ -492,7 +506,7 @@ function RankingPage({ history, onBack, onReviewWord, onReviewTopSet }) {
   );
 }
 
-/* ================== SwipeGame（あなたの既存） ================== */
+/* ================== SwipeGame ================== */
 
 function SwipeGame({
   titleLabel,
@@ -565,7 +579,11 @@ function SwipeGame({
               <div>
                 <p className="brandTitle">がんばったね！🎉</p>
                 <p className="brandSub">
-                  {reviewWord ? `Review: ${reviewWord}` : Array.isArray(reviewSetWords) && reviewSetWords.length > 0 ? `Review Set: TOP${reviewSetWords.length}` : `List: ${String(titleLabel).toUpperCase()}`}
+                  {reviewWord
+                    ? `Review: ${reviewWord}`
+                    : Array.isArray(reviewSetWords) && reviewSetWords.length > 0
+                    ? `Review Set: TOP${reviewSetWords.length}`
+                    : `List: ${String(titleLabel).toUpperCase()}`}
                 </p>
               </div>
             </div>
@@ -633,9 +651,96 @@ function SwipeGame({
         </div>
 
         <div className="toolbar">
-          <button className="pill" onClick={() => setShowJa((v) => !v)}>🈶 日本語訳 {showJa ? "ON" : "OFF"}</button>
+          <button className={`pill ${showJa ? "on" : ""}`} onClick={() => setShowJa((v) => !v)}>🈶 日本語訳 {showJa ? "ON" : "OFF"}</button>
           <button className="pill" onClick={() => current && speak(current, "en-US")}>🔊 英語</button>
-          <button className="pill" onClick={() => setAutoSpeak((v) => !v)}>🎧 自動読み上げ {autoSpeak ? "ON" : "OFF"}</button>
+          <button className={`pill ${autoSpeak ? "on" : ""}`} onClick={() => setAutoSpeak((v) => !v)}>🎧 自動読み上げ {autoSpeak ? "ON" : "OFF"}</button>
+        </div>
+      </div>
+    </CuteShell>
+  );
+}
+
+/* ================== ChoiceGame ================== */
+
+function ChoiceGame({ onHome }) {
+  // ✅ 毎回リセットされないように初回だけ作る
+  const [quiz] = useState(() => shuffle(DOLCH).slice(0, 20));
+  const [index, setIndex] = useState(0);
+  const [score, setScore] = useState(0);
+
+  const current = quiz[index];
+
+  if (!current) {
+    return (
+      <CuteShell>
+        <div className="panel">
+          <div className="titleRow">
+            <div className="brand">
+              <div className="logo" />
+              <div>
+                <p className="brandTitle">🎉 結果</p>
+                <p className="brandSub">三択クイズ 20問</p>
+              </div>
+            </div>
+            <button className="pill" onClick={onHome}>◀ Home</button>
+          </div>
+
+          <div className="listBox" style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 18, fontWeight: 1000 }}>正解数</div>
+            <div style={{ fontSize: 44, fontWeight: 1000, marginTop: 6 }}>{score} / 20</div>
+          </div>
+
+          <div className="grid" style={{ marginTop: 14 }}>
+            <button className="cuteBtn primary" onClick={onHome}>🏠 Home にもどる</button>
+          </div>
+        </div>
+      </CuteShell>
+    );
+  }
+
+  const correct = JA[current] || "（訳未登録）";
+  const pool = Object.values(JA).filter((j) => j && j !== correct);
+  const wrong2 = shuffle(pool).slice(0, 2);
+  const choices = shuffle([correct, ...wrong2]);
+
+  const answer = (choice) => {
+    if (choice === correct) setScore((s) => s + 1);
+    setIndex((i) => i + 1);
+  };
+
+  return (
+    <CuteShell>
+      <div className="panel">
+        <div className="titleRow">
+          <div className="brand">
+            <div className="logo" />
+            <div>
+              <p className="brandTitle">🧩 三択クイズ</p>
+              <p className="brandSub">英語→日本語（3択）</p>
+            </div>
+          </div>
+          <button className="pill" onClick={onHome}>◀ Home</button>
+        </div>
+
+        <div className="progressRow" style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+          <span className="chip">{index + 1} / 20</span>
+          <span className="chip">✅ {score}</span>
+        </div>
+
+        <div className="wordCard" style={{ height: 240 }}>
+          <div className="wordText" style={{ fontSize: 64 }}>{current}</div>
+        </div>
+
+        <div className="grid" style={{ marginTop: 12 }}>
+          {choices.map((c, i) => (
+            <button key={i} className="cuteBtn" onClick={() => answer(c)}>
+              {c}
+            </button>
+          ))}
+        </div>
+
+        <div className="toolbar">
+          <button className="pill" onClick={() => speak(current, "en-US")}>🔊 英語</button>
         </div>
       </div>
     </CuteShell>
@@ -645,12 +750,16 @@ function SwipeGame({
 /* ================== App ================== */
 
 function AppInner() {
+  // home / ranking / swipe / choice
   const [mode, setMode] = useState("home");
+
+  // dolch / fry / reviewWord / reviewSet
   const [playType, setPlayType] = useState("dolch");
   const [reviewWord, setReviewWord] = useState(null);
   const [reviewSetWords, setReviewSetWords] = useState([]);
   const [words, setWords] = useState([]);
   const [gameKey, setGameKey] = useState(0);
+
   const [history, setHistory] = useState(() => loadHistory());
 
   const baseList = useMemo(() => (playType === "dolch" ? DOLCH : FRY_100), [playType]);
@@ -665,8 +774,8 @@ function AppInner() {
 
   const startNormal = (selected) => {
     if (selected === "choice") {
-      setMode("choice");
       bumpSession();
+      setMode("choice");
       return;
     }
 
@@ -679,31 +788,35 @@ function AppInner() {
 
     setWords(first20);
     setGameKey((k) => k + 1);
-    setMode("game");
+    setMode("swipe");
     bumpSession();
   };
 
   const startReviewWord = (word) => {
     const w = normalizeWord(word);
     if (!w) return;
+
     setPlayType("reviewWord");
     setReviewWord(w);
     setReviewSetWords([]);
+
     setWords(repeatWord(w, 20));
     setGameKey((k) => k + 1);
-    setMode("game");
+    setMode("swipe");
     bumpSession();
   };
 
   const startReviewTopSet = (wordList) => {
     const arr = (wordList || []).map(normalizeWord).filter(Boolean);
     if (arr.length === 0) return;
+
     setPlayType("reviewSet");
     setReviewWord(null);
     setReviewSetWords(arr);
-    setWords(shuffle(arr));
+
+    setWords(shuffle(arr)); // ✅ 毎回ランダム
     setGameKey((k) => k + 1);
-    setMode("game");
+    setMode("swipe");
     bumpSession();
   };
 
@@ -723,20 +836,21 @@ function AppInner() {
     if (playType === "reviewWord" && reviewWord) {
       setWords(repeatWord(reviewWord, 20));
       setGameKey((k) => k + 1);
-      setMode("game");
+      setMode("swipe");
       bumpSession();
       return;
     }
     if (playType === "reviewSet" && reviewSetWords.length > 0) {
       setWords(shuffle(reviewSetWords));
       setGameKey((k) => k + 1);
-      setMode("game");
+      setMode("swipe");
       bumpSession();
       return;
     }
+
     setWords(pickMore(baseList, [], 20));
     setGameKey((k) => k + 1);
-    setMode("game");
+    setMode("swipe");
     bumpSession();
   };
 
@@ -744,6 +858,7 @@ function AppInner() {
     const w = normalizeWord(word);
     if (!w) return;
     const now = new Date().toISOString();
+
     setHistory((h) => {
       const prev = h.wordStats?.[w] ?? { known: 0, unknown: 0, last: null };
       const next = {
@@ -773,26 +888,7 @@ function AppInner() {
   }
 
   if (mode === "choice") {
-    // ここは仮ページ（黒画面防止）
-    return (
-      <CuteShell>
-        <div className="panel">
-          <div className="titleRow">
-            <div className="brand">
-              <div className="logo" />
-              <div>
-                <p className="brandTitle">🧩 三択クイズモード</p>
-                <p className="brandSub">ただいま調整中（エラー原因を特定中）</p>
-              </div>
-            </div>
-            <button className="pill" onClick={() => setMode("home")}>◀ Home</button>
-          </div>
-          <div style={{ marginTop: 30, textAlign: "center", fontWeight: 900 }}>
-            ここが黒のままなら、上にエラーが表示されます。
-          </div>
-        </div>
-      </CuteShell>
-    );
+    return <ChoiceGame onHome={() => setMode("home")} />;
   }
 
   if (mode === "home") {
@@ -807,7 +903,13 @@ function AppInner() {
   }
 
   const titleLabel =
-    playType === "fry" ? "FRY" : playType === "dolch" ? "DOLCH" : playType === "reviewWord" ? "REVIEW" : "REVIEW SET";
+    playType === "fry"
+      ? "FRY"
+      : playType === "dolch"
+      ? "DOLCH"
+      : playType === "reviewWord"
+      ? "REVIEW"
+      : "REVIEW SET";
 
   return (
     <SwipeGame
