@@ -38,10 +38,9 @@ window.addEventListener("unhandledrejection", (e) => {
 
 try {
   ReactDOM.createRoot(document.getElementById("root")).render(
-    <React.StrictMode>
-      <App />
-    </React.StrictMode>
-  );
+  <App />
+);
+
 } catch (err) {
   showFatal("React render crashed", err);
 }

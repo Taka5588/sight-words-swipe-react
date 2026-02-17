@@ -4,7 +4,6 @@ import { DOLCH, FRY_100 } from "./wordlists";
 import { JA } from "./translations";
 
 /* ================== utilities ================== */
-
 function shuffle(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -13,24 +12,20 @@ function shuffle(arr) {
   }
   return a;
 }
-
 function normalizeWord(w) {
   return String(w ?? "").trim();
 }
-
 function pickMore(list, existingWords, n = 20) {
   const existing = new Set(existingWords.map(normalizeWord));
   const unique = Array.from(new Set(list.map(normalizeWord).filter(Boolean)));
   const candidates = unique.filter((w) => !existing.has(w));
   return shuffle(candidates).slice(0, Math.min(n, candidates.length));
 }
-
 function repeatWord(word, n = 20) {
   const w = normalizeWord(word);
   if (!w) return [];
   return Array.from({ length: n }, () => w);
 }
-
 function speak(text, lang = "en-US") {
   try {
     if (!("speechSynthesis" in window)) return;
@@ -45,13 +40,15 @@ function speak(text, lang = "en-US") {
 }
 
 /* ================== localStorage (history) ================== */
-
 const STORAGE_KEY = "sightWordsSwipeHistory_v5";
 
 function emptyHistory() {
-  return { sessions: 0, lastStudiedAt: null, wordStats: {} };
+  return {
+    sessions: 0,
+    lastStudiedAt: null,
+    wordStats: {}, // { [word]: { known, unknown, last } }
+  };
 }
-
 function loadHistory() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -60,17 +57,16 @@ function loadHistory() {
     return {
       sessions: Number(parsed.sessions ?? 0),
       lastStudiedAt: parsed.lastStudiedAt ?? null,
-      wordStats: typeof parsed.wordStats === "object" && parsed.wordStats ? parsed.wordStats : {},
+      wordStats:
+        typeof parsed.wordStats === "object" && parsed.wordStats ? parsed.wordStats : {},
     };
   } catch {
     return emptyHistory();
   }
 }
-
 function saveHistory(h) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(h));
 }
-
 function formatJPDateTime(iso) {
   if (!iso) return "なし";
   try {
@@ -82,7 +78,6 @@ function formatJPDateTime(iso) {
 }
 
 /* ================== confetti (spark) ================== */
-
 function SparkBurst({ show, seed }) {
   if (!show) return null;
   const colors = ["#ff7ab6", "#7fe7d6", "#bfe8ff", "#ffe066", "#ffffff"];
@@ -121,7 +116,6 @@ function SparkBurst({ show, seed }) {
 }
 
 /* ================== ranking ================== */
-
 function buildWeakRanking(wordStats, topN = 10) {
   const rows = [];
   for (const [word, s] of Object.entries(wordStats || {})) {
@@ -157,23 +151,25 @@ function buildWeakRanking(wordStats, topN = 10) {
 }
 
 /* ================== Error Boundary ================== */
-
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
     this.state = { hasError: false, message: "", stack: "" };
   }
   static getDerivedStateFromError(err) {
-    return { hasError: true, message: String(err?.message ?? err), stack: String(err?.stack ?? "") };
+    return {
+      hasError: true,
+      message: String(err?.message ?? err),
+      stack: String(err?.stack ?? ""),
+    };
   }
   componentDidCatch(err) {
     console.error("App crashed:", err);
   }
   render() {
     if (!this.state.hasError) return this.props.children;
-
     return (
-      <div style={{ padding: 16, fontFamily: "system-ui", color: "#111", background: "#fff", minHeight: "100vh" }}>
+      <div style={{ padding: 16, fontFamily: "system-ui", color: "#111", background: "#fff" }}>
         <h2 style={{ marginTop: 0 }}>⚠️ エラーが発生しました</h2>
         <p>下の内容をそのまま私に貼ってください。</p>
         <div style={{ whiteSpace: "pre-wrap", background: "#f5f5f5", padding: 12, borderRadius: 8 }}>
@@ -190,7 +186,6 @@ class ErrorBoundary extends React.Component {
 }
 
 /* ================== Cute UI shell ================== */
-
 function CuteShell({ children }) {
   return (
     <div className="appShell">
@@ -233,6 +228,7 @@ function CuteShell({ children }) {
           padding: 18px;
           position:relative;
         }
+
         .titleRow{
           display:flex;
           align-items:center;
@@ -256,7 +252,9 @@ function CuteShell({ children }) {
         .brandSub{ margin:0; font-size:12px; color:var(--muted); }
 
         .chip{
-          display:inline-flex; align-items:center; gap:6px;
+          display:inline-flex;
+          align-items:center;
+          gap:6px;
           padding: 8px 12px;
           background: rgba(255,255,255,.9);
           border: 2px solid rgba(0,0,0,.10);
@@ -292,10 +290,7 @@ function CuteShell({ children }) {
           height: 320px;
           border-radius: 26px;
           border: 2px solid rgba(0,0,0,.14);
-          background:
-            radial-gradient(380px 220px at 25% 20%, rgba(255,122,182,.12), transparent 55%),
-            radial-gradient(320px 220px at 75% 30%, rgba(127,231,214,.12), transparent 55%),
-            linear-gradient(180deg, #ffffff 0%, #fffdf6 100%);
+          background: #fff;
           box-shadow: var(--shadow);
           display:grid;
           place-items:center;
@@ -305,17 +300,37 @@ function CuteShell({ children }) {
           position:relative;
           overflow:hidden;
         }
-        .wordText{ font-size: 78px; font-weight: 1000; color: var(--ink); line-height: 1.0; }
-        .jaText{ margin-top: 10px; font-size: 18px; font-weight: 900; color: var(--ink); }
+        .wordText{
+          font-size: 78px;
+          font-weight: 1000;
+          color: var(--ink);
+          line-height: 1.0;
+          text-align:center;
+        }
+        .jaText{
+          margin-top: 10px;
+          font-size: 18px;
+          font-weight: 900;
+          color: var(--ink);
+          text-align:center;
+        }
         .swipeHint{
           position:absolute;
           left:14px; right:14px; bottom:12px;
-          display:flex; justify-content:space-between;
-          font-size: 12px; font-weight: 1000;
+          display:flex;
+          justify-content:space-between;
+          font-size: 12px;
+          font-weight: 1000;
           color: rgba(18,18,18,.55);
         }
 
-        .toolbar{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top: 12px; }
+        .toolbar{
+          display:flex;
+          gap:10px;
+          flex-wrap:wrap;
+          justify-content:center;
+          margin-top: 12px;
+        }
         .pill{
           padding: 10px 12px;
           border-radius: 999px;
@@ -343,8 +358,11 @@ function CuteShell({ children }) {
         }
 
         .rankRow{
-          display:flex; align-items:center; justify-content:space-between;
-          gap:10px; padding: 10px 10px;
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap:10px;
+          padding: 10px 10px;
           border-radius: 14px;
           border: 2px solid rgba(0,0,0,.08);
           background: rgba(255,255,255,.95);
@@ -353,24 +371,56 @@ function CuteShell({ children }) {
         }
         .rankLeft{ display:flex; gap:10px; align-items:center; min-width: 0; }
         .badge{
-          width: 28px; height: 28px; border-radius: 10px;
-          display:grid; place-items:center; font-weight: 1000;
+          width: 28px;
+          height: 28px;
+          border-radius: 10px;
+          display:grid;
+          place-items:center;
+          font-weight: 1000;
           background: linear-gradient(135deg, rgba(255,122,182,.35), rgba(127,231,214,.25));
           border: 2px solid rgba(0,0,0,.08);
         }
-        .w{ font-weight: 1000; font-size: 16px; overflow:hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .sub{ font-size: 12px; color: var(--muted); margin-top: 2px; overflow:hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .rankRight{ text-align:right; font-size: 12px; color: var(--muted); white-space: nowrap; }
-        .pct{ font-size: 14px; font-weight: 1000; color: var(--ink); }
+        .w{
+          font-weight: 1000;
+          font-size: 16px;
+          overflow:hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .sub{
+          font-size: 12px;
+          color: var(--muted);
+          margin-top: 2px;
+          overflow:hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .rankRight{
+          text-align:right;
+          font-size: 12px;
+          color: var(--muted);
+          white-space: nowrap;
+        }
+        .pct{
+          font-size: 14px;
+          font-weight: 1000;
+          color: var(--ink);
+        }
 
         /* ✨ 正解キラキラ（下→上） */
         .sparkBurst{
-          position: fixed; inset: 0;
-          pointer-events: none; z-index: 9999; overflow: hidden;
+          position: fixed;
+          inset: 0;
+          pointer-events: none;
+          z-index: 9999;
+          overflow: hidden;
         }
         .sparkBurst .p{
-          position:absolute; border-radius: 999px; opacity: .95;
-          animation-name: rise; animation-timing-function: ease-out;
+          position:absolute;
+          border-radius: 999px;
+          opacity: .95;
+          animation-name: rise;
+          animation-timing-function: ease-out;
           animation-fill-mode: forwards;
           filter: drop-shadow(0 6px 10px rgba(0,0,0,.12));
         }
@@ -379,13 +429,13 @@ function CuteShell({ children }) {
           100%{ transform: translate(var(--dx), calc(-1 * var(--dy))) scale(.65) rotate(40deg); opacity: 0; }
         }
       `}</style>
+
       {children}
     </div>
   );
 }
 
 /* ================== Pages ================== */
-
 function Home({ onStart, history, onResetHistory, onOpenRanking }) {
   return (
     <CuteShell>
@@ -400,6 +450,7 @@ function Home({ onStart, history, onResetHistory, onOpenRanking }) {
           </div>
         </div>
 
+        {/* 開始ボタン（Dolch / Fry） */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16, alignItems: "center", marginTop: 16 }}>
           <button className="cuteBtn primary" style={{ width: "90%", padding: 16 }} onClick={() => onStart("dolch")}>
             🍓 Dolch Sight Words 220
@@ -412,14 +463,9 @@ function Home({ onStart, history, onResetHistory, onOpenRanking }) {
             <br />
             <span style={{ fontSize: 14, fontWeight: "normal" }}>（今すぐ20語スタート）</span>
           </button>
-
-          <button className="cuteBtn" style={{ width: "90%", padding: 14 }} onClick={() => onStart("choice")}>
-            🧩 三択クイズモード
-            <br />
-            <span style={{ fontSize: 14, fontWeight: "normal" }}>（英語→日本語 3択）</span>
-          </button>
         </div>
 
+        {/* 学習履歴 */}
         <div className="listBox" style={{ marginTop: 20 }}>
           <strong>📊 学習履歴</strong>
           <div style={{ marginTop: 6 }}>
@@ -427,7 +473,8 @@ function Home({ onStart, history, onResetHistory, onOpenRanking }) {
               学習開始回数：<strong>{history.sessions}</strong>
             </div>
             <div>
-              最後に勉強：<strong>{history.lastStudiedAt ? formatJPDateTime(history.lastStudiedAt) : "まだありません"}</strong>
+              最後に勉強：
+              <strong>{history.lastStudiedAt ? formatJPDateTime(history.lastStudiedAt) : "まだありません"}</strong>
             </div>
           </div>
 
@@ -507,7 +554,6 @@ function RankingPage({ history, onBack, onReviewWord, onReviewTopSet }) {
 }
 
 /* ================== SwipeGame ================== */
-
 function SwipeGame({
   titleLabel,
   words,
@@ -570,6 +616,9 @@ function SwipeGame({
   const progressPct = words.length ? Math.min(100, Math.round(((index + 1) / words.length) * 100)) : 0;
 
   if (done) {
+    const isReviewWord = !!reviewWord;
+    const isReviewSet = Array.isArray(reviewSetWords) && reviewSetWords.length > 0;
+
     return (
       <CuteShell>
         <div className="panel">
@@ -579,9 +628,9 @@ function SwipeGame({
               <div>
                 <p className="brandTitle">がんばったね！🎉</p>
                 <p className="brandSub">
-                  {reviewWord
+                  {isReviewWord
                     ? `Review: ${reviewWord}`
-                    : Array.isArray(reviewSetWords) && reviewSetWords.length > 0
+                    : isReviewSet
                     ? `Review Set: TOP${reviewSetWords.length}`
                     : `List: ${String(titleLabel).toUpperCase()}`}
                 </p>
@@ -651,87 +700,12 @@ function SwipeGame({
         </div>
 
         <div className="toolbar">
-          <button className={`pill ${showJa ? "on" : ""}`} onClick={() => setShowJa((v) => !v)}>🈶 日本語訳 {showJa ? "ON" : "OFF"}</button>
+          <button className={`pill ${showJa ? "on" : ""}`} onClick={() => setShowJa((v) => !v)}>
+            🈶 日本語訳 {showJa ? "ON" : "OFF"}
+          </button>
           <button className="pill" onClick={() => current && speak(current, "en-US")}>🔊 英語</button>
-          <button className={`pill ${autoSpeak ? "on" : ""}`} onClick={() => setAutoSpeak((v) => !v)}>🎧 自動読み上げ {autoSpeak ? "ON" : "OFF"}</button>
-        </div>
-      </div>
-    </CuteShell>
-  );
-}
-
-/* ================== ChoiceGame ================== */
-
-function ChoiceGame({ onHome }) {
-  const [quiz] = useState(() => {
-    const base = Array.isArray(DOLCH) ? DOLCH : [];
-    return shuffle(base).slice(0, 20);
-  });
-
-  const [index, setIndex] = useState(0);
-  const [score, setScore] = useState(0);
-
-  const current = quiz[index];
-
-  if (!current) {
-    return (
-      <CuteShell>
-        <div className="panel">
-          <h2>🎉 結果</h2>
-          <p>正解数: {score} / 20</p>
-          <button className="cuteBtn" onClick={onHome}>
-            🏠 Home
-          </button>
-        </div>
-      </CuteShell>
-    );
-  }
-
-  // ✅ JAが存在しないケースを防御
-  const correct =
-    (JA && typeof JA === "object" && JA[current])
-      ? JA[current]
-      : "（訳未登録）";
-
-  const allTranslations =
-    JA && typeof JA === "object"
-      ? Object.values(JA).filter(Boolean)
-      : [];
-
-  const wrongPool = allTranslations.filter((j) => j !== correct);
-  const wrong2 = shuffle(wrongPool).slice(0, 2);
-
-  const choices = shuffle([correct, ...wrong2]);
-
-  const answer = (choice) => {
-    if (choice === correct) {
-      setScore((s) => s + 1);
-    }
-    setIndex((i) => i + 1);
-  };
-
-  return (
-    <CuteShell>
-      <div className="panel">
-        <h2>🧩 三択クイズ</h2>
-
-        <div className="wordCard" style={{ height: 240 }}>
-          <div className="wordText" style={{ fontSize: 64 }}>
-            {current}
-          </div>
-        </div>
-
-        <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 12 }}>
-          {choices.map((c, i) => (
-            <button key={i} className="cuteBtn" onClick={() => answer(c)}>
-              {c}
-            </button>
-          ))}
-        </div>
-
-        <div style={{ marginTop: 20 }}>
-          <button className="pill" onClick={onHome}>
-            🏠 Home
+          <button className={`pill ${autoSpeak ? "on" : ""}`} onClick={() => setAutoSpeak((v) => !v)}>
+            🎧 自動読み上げ {autoSpeak ? "ON" : "OFF"}
           </button>
         </div>
       </div>
@@ -739,17 +713,13 @@ function ChoiceGame({ onHome }) {
   );
 }
 
-
-/* ================== App ================== */
-
+/* ================== AppInner ================== */
 function AppInner() {
-  // home / ranking / swipe / choice
-  const [mode, setMode] = useState("home");
-
-  // dolch / fry / reviewWord / reviewSet
-  const [playType, setPlayType] = useState("dolch");
+  const [mode, setMode] = useState("home"); // home / ranking / game
+  const [playType, setPlayType] = useState("dolch"); // dolch / fry / reviewWord / reviewSet
   const [reviewWord, setReviewWord] = useState(null);
   const [reviewSetWords, setReviewSetWords] = useState([]);
+
   const [words, setWords] = useState([]);
   const [gameKey, setGameKey] = useState(0);
 
@@ -766,36 +736,26 @@ function AppInner() {
   };
 
   const startNormal = (selected) => {
-    if (selected === "choice") {
-      bumpSession();
-      setMode("choice");
-      return;
-    }
-
     setPlayType(selected);
     setReviewWord(null);
     setReviewSetWords([]);
 
     const list = selected === "dolch" ? DOLCH : FRY_100;
-    const first20 = pickMore(list, [], 20);
-
-    setWords(first20);
+    setWords(pickMore(list, [], 20));
     setGameKey((k) => k + 1);
-    setMode("swipe");
+    setMode("game");
     bumpSession();
   };
 
   const startReviewWord = (word) => {
     const w = normalizeWord(word);
     if (!w) return;
-
     setPlayType("reviewWord");
     setReviewWord(w);
     setReviewSetWords([]);
-
     setWords(repeatWord(w, 20));
     setGameKey((k) => k + 1);
-    setMode("swipe");
+    setMode("game");
     bumpSession();
   };
 
@@ -807,9 +767,9 @@ function AppInner() {
     setReviewWord(null);
     setReviewSetWords(arr);
 
-    setWords(shuffle(arr)); // ✅ 毎回ランダム
+    setWords(shuffle(arr)); // 毎回シャッフル
     setGameKey((k) => k + 1);
-    setMode("swipe");
+    setMode("game");
     bumpSession();
   };
 
@@ -829,21 +789,20 @@ function AppInner() {
     if (playType === "reviewWord" && reviewWord) {
       setWords(repeatWord(reviewWord, 20));
       setGameKey((k) => k + 1);
-      setMode("swipe");
+      setMode("game");
       bumpSession();
       return;
     }
     if (playType === "reviewSet" && reviewSetWords.length > 0) {
       setWords(shuffle(reviewSetWords));
       setGameKey((k) => k + 1);
-      setMode("swipe");
+      setMode("game");
       bumpSession();
       return;
     }
-
     setWords(pickMore(baseList, [], 20));
     setGameKey((k) => k + 1);
-    setMode("swipe");
+    setMode("game");
     bumpSession();
   };
 
@@ -880,32 +839,16 @@ function AppInner() {
     );
   }
 
-  if (mode === "ranking") {
-  return (
-    <RankingPage
-      history={history}
-      onBack={() => setMode("home")}
-      onReviewWord={(w) => startReviewWord(w)}
-      onReviewTopSet={(arr) => startReviewTopSet(arr)}
-    />
-  );
-}
-
-if (mode === "home") {
-  return (
-    <Home
-      onStart={startNormal}
-      history={history}
-      onResetHistory={resetHistory}
-      onOpenRanking={() => setMode("ranking")}
-    />
-  );
-}
-
-if (playType === "choice") {
-  return <ChoiceGame onHome={() => setMode("home")} />;
-}
-
+  if (mode === "home") {
+    return (
+      <Home
+        onStart={startNormal}
+        history={history}
+        onResetHistory={resetHistory}
+        onOpenRanking={() => setMode("ranking")}
+      />
+    );
+  }
 
   const titleLabel =
     playType === "fry"
@@ -932,6 +875,7 @@ if (playType === "choice") {
   );
 }
 
+/* ================== App ================== */
 export default function App() {
   return (
     <ErrorBoundary>
