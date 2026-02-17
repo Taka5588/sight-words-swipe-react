@@ -666,15 +666,47 @@ function SwipeGame({
 /* ================== ChoiceGame（切替ボタン付き・Hooks安定） ================== */
 
 function ChoiceGame({ onHome }) {
-  // ✅ 初回だけ問題セット固定（レンダー毎に変わると混乱するので useMemo）
-  const quizWords = useMemo(() => shuffle(DOLCH).slice(0, 20), []);
+  // ✅ 20問セットを「1回の開始につき固定」するためのseed
+  const [seed, setSeed] = useState(0);
+
+  // ✅ Hooksは必ず毎回同じ順番で呼ぶ（returnの前に全部）
+  const questions = useMemo(() => {
+    // ここを FRY_100 にしたければ DOLCH → FRY_100
+    return shuffle(DOLCH).slice(0, 20);
+  }, [seed]);
+
   const [index, setIndex] = useState(0);
   const [score, setScore] = useState(0);
-  const [direction, setDirection] = useState("enToJa"); // enToJa / jaToEn
 
-  const current = quizWords[index];
+  const current = questions[index] ?? null;
 
-  // 終了画面
+  const correct = useMemo(() => {
+    if (!current) return "";
+    return JA[current] ?? "（やくみとうろく）";
+  }, [current]);
+
+  const choices = useMemo(() => {
+    if (!current) return [];
+    const pool = Object.values(JA).filter(Boolean);
+    const wrongs = shuffle(pool.filter((j) => j !== correct)).slice(0, 2);
+    return shuffle([correct, ...wrongs]);
+  }, [current, correct]);
+
+  const total = questions.length;
+
+  const handleAnswer = (choice) => {
+    if (!current) return;
+    if (choice === correct) setScore((s) => s + 1);
+    setIndex((i) => i + 1);
+  };
+
+  const restart = () => {
+    setIndex(0);
+    setScore(0);
+    setSeed((s) => s + 1); // ✅ 新しい20問セットを作る
+  };
+
+  // ✅ 終了画面（Hooksは既に全部呼び終わっているのでOK）
   if (!current) {
     return (
       <CuteShell>
@@ -683,57 +715,32 @@ function ChoiceGame({ onHome }) {
             <div className="brand">
               <div className="logo" />
               <div>
-                <p className="brandTitle">🎉 三択クイズ 結果</p>
+                <p className="brandTitle">🧩 さんたくクイズ</p>
                 <p className="brandSub">おつかれさま！</p>
               </div>
             </div>
-            <button className="pill" onClick={onHome}>◀ Home</button>
+            <button className="pill" onClick={onHome}>◀ home</button>
           </div>
 
           <div className="listBox" style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 18, fontWeight: 1000 }}>正解数</div>
-            <div style={{ fontSize: 36, fontWeight: 1000, marginTop: 6 }}>
-              {score} / {quizWords.length}
+            <div style={{ fontSize: 18, fontWeight: 1000 }}>🎉 けっか</div>
+            <div style={{ marginTop: 10, fontSize: 16 }}>
+              せいかい：<strong>{score}</strong> / {total}
             </div>
           </div>
 
           <div className="grid" style={{ marginTop: 12 }}>
-            <button
-              className="cuteBtn primary"
-              onClick={() => {
-                setIndex(0);
-                setScore(0);
-              }}
-            >
-              🔁 もう一度（同じ20問）
+            <button className="cuteBtn primary" onClick={restart}>
+              🔁 もういちど 20もん
             </button>
             <button className="cuteBtn" onClick={onHome}>
-              🏠 Home にもどる
+              🏠 home にもどる
             </button>
           </div>
         </div>
       </CuteShell>
     );
   }
-
-  const correctJa = JA[current] || "（訳未登録）";
-  const questionText = direction === "enToJa" ? current : correctJa;
-  const correctAnswer = direction === "enToJa" ? correctJa : current;
-
-  // 選択肢候補プール（訳が少ない/空でも落ちないようにガード）
-  const wrongPool = direction === "enToJa"
-    ? Object.values(JA).filter(Boolean)
-    : DOLCH.map(normalizeWord).filter(Boolean);
-
-  const choices = useMemo(() => {
-    const wrongs = shuffle(wrongPool).filter((x) => x !== correctAnswer).slice(0, 2);
-    return shuffle([correctAnswer, ...wrongs]);
-  }, [correctAnswer, direction]); // wrongPoolは固定に近いのでOK
-
-  const handleAnswer = (choice) => {
-    if (choice === correctAnswer) setScore((s) => s + 1);
-    setIndex((i) => i + 1);
-  };
 
   return (
     <CuteShell>
@@ -742,22 +749,20 @@ function ChoiceGame({ onHome }) {
           <div className="brand">
             <div className="logo" />
             <div>
-              <p className="brandTitle">🧩 三択クイズ</p>
-              <p className="brandSub">タップして答えてね（{index + 1}/{quizWords.length}）</p>
+              <p className="brandTitle">🧩 さんたくクイズ</p>
+              <p className="brandSub">えいご → にほんご（3つからえらぶ）</p>
             </div>
           </div>
-          <button className="pill" onClick={onHome}>◀ Home</button>
+          <button className="pill" onClick={onHome}>◀ home</button>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
-          <span className="chip">🏆 Score: <strong>{score}</strong></span>
-          <button className="pill" onClick={() => setDirection((d) => (d === "enToJa" ? "jaToEn" : "enToJa"))}>
-            🔄 {direction === "enToJa" ? "英語 → 日本語" : "日本語 → 英語"}
-          </button>
+        <div className="progressRow">
+          <span className="chip">もんだい {index + 1} / {total}</span>
+          <span className="chip">せいかい {score}</span>
         </div>
 
         <div className="wordCard" style={{ height: 220 }}>
-          <div className="wordText" style={{ fontSize: 52 }}>{questionText}</div>
+          <div className="wordText" style={{ fontSize: 64 }}>{current}</div>
         </div>
 
         <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 12 }}>
@@ -771,6 +776,7 @@ function ChoiceGame({ onHome }) {
     </CuteShell>
   );
 }
+
 
 /* ================== AppInner（Hooks順を絶対に崩さない） ================== */
 
