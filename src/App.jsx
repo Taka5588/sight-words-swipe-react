@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useSwipeable } from "react-swipeable";
 import { DOLCH, FRY_100 } from "./wordlists";
 import { JA } from "./translations";
@@ -34,13 +34,11 @@ function repeatWord(word, n = 20) {
 function speak(text, lang = "en-US") {
   try {
     if (!("speechSynthesis" in window)) return;
-    const synth = window.speechSynthesis;
-    synth.cancel();
-    synth.resume();
+    window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
     u.lang = lang;
     u.rate = 0.95;
-    setTimeout(() => synth.speak(u), 120);
+    window.speechSynthesis.speak(u);
   } catch {
     // ignore
   }
@@ -51,11 +49,7 @@ function speak(text, lang = "en-US") {
 const STORAGE_KEY = "sightWordsSwipeHistory_v5";
 
 function emptyHistory() {
-  return {
-    sessions: 0,
-    lastStudiedAt: null,
-    wordStats: {}, // { [word]: { known, unknown, last } }
-  };
+  return { sessions: 0, lastStudiedAt: null, wordStats: {} };
 }
 
 function loadHistory() {
@@ -134,13 +128,11 @@ function SparkBurst({ show, seed }) {
 
 function buildWeakRanking(wordStats, topN = 10) {
   const rows = [];
-
   for (const [word, s] of Object.entries(wordStats || {})) {
     const known = Number(s?.known ?? 0);
     const unknown = Number(s?.unknown ?? 0);
     const total = known + unknown;
     if (total <= 0) continue;
-
     const unknownRate = unknown / total;
     rows.push({
       word,
@@ -165,6 +157,43 @@ function buildWeakRanking(wordStats, topN = 10) {
   });
 
   return base.slice(0, topN);
+}
+
+/* ================== Error Boundary ================== */
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, message: "", stack: "" };
+  }
+  static getDerivedStateFromError(err) {
+    return {
+      hasError: true,
+      message: String(err?.message ?? err),
+      stack: String(err?.stack ?? ""),
+    };
+  }
+  componentDidCatch(err) {
+    console.error("App crashed:", err);
+  }
+  render() {
+    if (!this.state.hasError) return this.props.children;
+
+    return (
+      <div style={{ padding: 16, fontFamily: "system-ui", color: "#111", background: "#fff" }}>
+        <h2 style={{ marginTop: 0 }}>⚠️ エラーが発生しました</h2>
+        <p>下の内容をそのまま貼ってください（原因を特定して直します）。</p>
+        <div style={{ whiteSpace: "pre-wrap", background: "#f5f5f5", padding: 12, borderRadius: 8 }}>
+          {this.state.message}
+          {"\n\n"}
+          {this.state.stack}
+        </div>
+        <button style={{ marginTop: 12 }} onClick={() => location.reload()}>
+          再読み込み
+        </button>
+      </div>
+    );
+  }
 }
 
 /* ================== Cute UI shell ================== */
@@ -231,23 +260,11 @@ function CuteShell({ children }) {
           box-shadow: var(--shadow2);
           border: 2px solid rgba(0,0,0,.10);
         }
-        .brandTitle{
-          font-weight: 1000;
-          letter-spacing: .3px;
-          font-size: 20px;
-          margin:0;
-          line-height:1.1;
-        }
-        .brandSub{
-          margin:0;
-          font-size: 12px;
-          color: var(--muted);
-        }
+        .brandTitle{ font-weight:1000; font-size:20px; margin:0; line-height:1.1; }
+        .brandSub{ margin:0; font-size:12px; color:var(--muted); }
 
         .chip{
-          display:inline-flex;
-          align-items:center;
-          gap:6px;
+          display:inline-flex; align-items:center; gap:6px;
           padding: 8px 12px;
           background: rgba(255,255,255,.9);
           border: 2px solid rgba(0,0,0,.10);
@@ -258,6 +275,7 @@ function CuteShell({ children }) {
           user-select:none;
           white-space:nowrap;
         }
+        .chip strong{ font-weight: 1000; }
 
         .grid{ display:grid; gap:10px; }
         .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
@@ -273,9 +291,7 @@ function CuteShell({ children }) {
           font-weight: 900;
           cursor:pointer;
           box-shadow: 0 12px 22px rgba(0,0,0,.10);
-          transition: transform .08s ease, box-shadow .15s ease;
         }
-        .cuteBtn:active{ transform: translateY(1px) scale(.995); }
         .cuteBtn.primary{
           background: linear-gradient(135deg, rgba(255,122,182,.95) 0%, rgba(255,182,216,.95) 50%, rgba(191,232,255,.95) 100%);
         }
@@ -284,10 +300,7 @@ function CuteShell({ children }) {
           height: 320px;
           border-radius: 26px;
           border: 2px solid rgba(0,0,0,.14);
-          background:
-            radial-gradient(380px 220px at 25% 20%, rgba(255,122,182,.12), transparent 55%),
-            radial-gradient(320px 220px at 75% 30%, rgba(127,231,214,.12), transparent 55%),
-            linear-gradient(180deg, #ffffff 0%, #fffdf6 100%);
+          background: #fff;
           box-shadow: var(--shadow);
           display:grid;
           place-items:center;
@@ -297,43 +310,17 @@ function CuteShell({ children }) {
           position:relative;
           overflow:hidden;
         }
-        .wordText{
-          font-size: 78px;
-          font-weight: 1000;
-          color: var(--ink);
-          line-height: 1.0;
-          letter-spacing: .5px;
-          text-shadow: 0 3px 0 rgba(255,122,182,.12);
-          position:relative;
-          z-index:1;
-        }
-        .jaText{
-          margin-top: 10px;
-          font-size: 18px;
-          font-weight: 900;
-          color: var(--ink);
-          opacity:.95;
-          position:relative;
-          z-index:1;
-        }
+        .wordText{ font-size: 78px; font-weight: 1000; color: var(--ink); line-height: 1.0; text-align:center; }
+        .jaText{ margin-top: 10px; font-size: 18px; font-weight: 900; color: var(--ink); text-align:center; }
         .swipeHint{
           position:absolute;
           left:14px; right:14px; bottom:12px;
-          display:flex;
-          justify-content:space-between;
-          font-size: 12px;
-          font-weight: 1000;
+          display:flex; justify-content:space-between;
+          font-size: 12px; font-weight: 1000;
           color: rgba(18,18,18,.55);
-          z-index:1;
         }
 
-        .toolbar{
-          display:flex;
-          gap:10px;
-          flex-wrap:wrap;
-          justify-content:center;
-          margin-top: 12px;
-        }
+        .toolbar{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top: 12px; }
         .pill{
           padding: 10px 12px;
           border-radius: 999px;
@@ -344,36 +331,6 @@ function CuteShell({ children }) {
           font-weight: 1000;
           cursor:pointer;
           box-shadow: 0 10px 18px rgba(0,0,0,.08);
-          transition: transform .08s ease;
-        }
-        .pill:active{ transform: translateY(1px); }
-        .pill.on{
-          background: linear-gradient(135deg, rgba(255,122,182,.35), rgba(127,231,214,.28));
-        }
-
-        .progressRow{
-          display:flex;
-          justify-content:space-between;
-          align-items:center;
-          gap:10px;
-          flex-wrap:wrap;
-          margin: 8px 0 10px;
-        }
-        .miniStat{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; align-items:center; }
-        .bar{
-          height: 10px;
-          border-radius: 999px;
-          background: rgba(0,0,0,.08);
-          overflow:hidden;
-          border: 2px solid rgba(0,0,0,.08);
-          flex:1;
-          min-width: 220px;
-        }
-        .bar > div{
-          height:100%;
-          border-radius: 999px;
-          background: linear-gradient(90deg, rgba(255,122,182,.95), rgba(127,231,214,.9));
-          width: 0%;
         }
 
         .listBox{
@@ -388,77 +345,33 @@ function CuteShell({ children }) {
         }
 
         .rankRow{
-          display:flex;
-          align-items:center;
-          justify-content:space-between;
-          gap:10px;
-          padding: 10px 10px;
+          display:flex; align-items:center; justify-content:space-between;
+          gap:10px; padding: 10px 10px;
           border-radius: 14px;
           border: 2px solid rgba(0,0,0,.08);
           background: rgba(255,255,255,.95);
           margin-top: 8px;
           cursor: pointer;
-          transition: transform .08s ease;
         }
-        .rankRow:active{ transform: translateY(1px); }
-
-        .rankLeft{
-          display:flex;
-          gap:10px;
-          align-items:center;
-          min-width: 0;
-        }
+        .rankLeft{ display:flex; gap:10px; align-items:center; min-width: 0; }
         .badge{
-          width: 28px;
-          height: 28px;
-          border-radius: 10px;
-          display:grid;
-          place-items:center;
-          font-weight: 1000;
+          width: 28px; height: 28px; border-radius: 10px;
+          display:grid; place-items:center; font-weight: 1000;
           background: linear-gradient(135deg, rgba(255,122,182,.35), rgba(127,231,214,.25));
           border: 2px solid rgba(0,0,0,.08);
         }
-        .w{
-          font-weight: 1000;
-          font-size: 16px;
-          overflow:hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-        .sub{
-          font-size: 12px;
-          color: var(--muted);
-          margin-top: 2px;
-          overflow:hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-        .rankRight{
-          text-align:right;
-          font-size: 12px;
-          color: var(--muted);
-          white-space: nowrap;
-        }
-        .pct{
-          font-size: 14px;
-          font-weight: 1000;
-          color: var(--ink);
-        }
+        .w{ font-weight: 1000; font-size: 16px; overflow:hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sub{ font-size: 12px; color: var(--muted); margin-top: 2px; overflow:hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .rankRight{ text-align:right; font-size: 12px; color: var(--muted); white-space: nowrap; }
+        .pct{ font-size: 14px; font-weight: 1000; color: var(--ink); }
 
-        /* ✨ 正解キラキラ（下→上） */
         .sparkBurst{
-          position: fixed;
-          inset: 0;
-          pointer-events: none;
-          z-index: 9999;
-          overflow: hidden;
+          position: fixed; inset: 0;
+          pointer-events: none; z-index: 9999; overflow: hidden;
         }
         .sparkBurst .p{
-          position:absolute;
-          border-radius: 999px;
-          opacity: .95;
-          animation-name: rise;
-          animation-timing-function: ease-out;
+          position:absolute; border-radius: 999px; opacity: .95;
+          animation-name: rise; animation-timing-function: ease-out;
           animation-fill-mode: forwards;
           filter: drop-shadow(0 6px 10px rgba(0,0,0,.12));
         }
@@ -467,7 +380,6 @@ function CuteShell({ children }) {
           100%{ transform: translate(var(--dx), calc(-1 * var(--dy))) scale(.65) rotate(40deg); opacity: 0; }
         }
       `}</style>
-
       {children}
     </div>
   );
@@ -489,54 +401,26 @@ function Home({ onStart, history, onResetHistory, onOpenRanking }) {
           </div>
         </div>
 
-        {/* Start Buttons */}
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "16px",
-            alignItems: "center",
-            marginTop: "16px",
-          }}
-        >
-          <button
-            className="cuteBtn primary"
-            style={{ width: "90%", padding: "16px" }}
-            onClick={() => onStart("dolch")}
-          >
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, alignItems: "center", marginTop: 16 }}>
+          <button className="cuteBtn primary" style={{ width: "90%", padding: 16 }} onClick={() => onStart("dolch")}>
             🍓 Dolch Sight Words 220
             <br />
-            <span style={{ fontSize: "14px", fontWeight: "normal" }}>
-              （今すぐ20語スタート）
-            </span>
+            <span style={{ fontSize: 14, fontWeight: "normal" }}>（今すぐ20語スタート）</span>
           </button>
 
-          <button
-            className="cuteBtn"
-            style={{ width: "90%", padding: "16px" }}
-            onClick={() => onStart("fry")}
-          >
+          <button className="cuteBtn" style={{ width: "90%", padding: 16 }} onClick={() => onStart("fry")}>
             🌈 Fry Sight Words 1000
             <br />
-            <span style={{ fontSize: "14px", fontWeight: "normal" }}>
-              （今すぐ20語スタート）
-            </span>
+            <span style={{ fontSize: 14, fontWeight: "normal" }}>（今すぐ20語スタート）</span>
           </button>
 
-          <button
-            className="cuteBtn"
-            style={{ width: "90%", padding: "16px" }}
-            onClick={() => onStart("choice")}
-          >
+          <button className="cuteBtn" style={{ width: "90%", padding: 14 }} onClick={() => onStart("choice")}>
             🧩 三択クイズモード
             <br />
-            <span style={{ fontSize: "14px", fontWeight: "normal" }}>
-              （英語⇄日本語 切替OK）
-            </span>
+            <span style={{ fontSize: 14, fontWeight: "normal" }}>（英語⇄日本語 切替OK）</span>
           </button>
         </div>
 
-        {/* History */}
         <div className="listBox" style={{ marginTop: 20 }}>
           <strong>📊 学習履歴</strong>
           <div style={{ marginTop: 6 }}>
@@ -544,20 +428,13 @@ function Home({ onStart, history, onResetHistory, onOpenRanking }) {
               学習開始回数：<strong>{history.sessions}</strong>
             </div>
             <div>
-              最後に勉強：
-              <strong>
-                {history.lastStudiedAt ? formatJPDateTime(history.lastStudiedAt) : "まだありません"}
-              </strong>
+              最後に勉強：<strong>{history.lastStudiedAt ? formatJPDateTime(history.lastStudiedAt) : "まだありません"}</strong>
             </div>
           </div>
 
           <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button className="pill" onClick={onOpenRanking}>
-              🧠 弱い単語ランキングを見る
-            </button>
-            <button className="pill" onClick={onResetHistory}>
-              🧹 履歴リセット
-            </button>
+            <button className="pill" onClick={onOpenRanking}>🧠 弱い単語ランキングを見る</button>
+            <button className="pill" onClick={onResetHistory}>🧹 履歴リセット</button>
           </div>
         </div>
       </div>
@@ -568,7 +445,6 @@ function Home({ onStart, history, onResetHistory, onOpenRanking }) {
 function RankingPage({ history, onBack, onReviewWord, onReviewTopSet }) {
   const weakTop10 = useMemo(() => buildWeakRanking(history.wordStats, 10), [history.wordStats]);
   const weakTop20 = useMemo(() => buildWeakRanking(history.wordStats, 20), [history.wordStats]);
-
   const canTop20 = weakTop20.length > 0;
 
   return (
@@ -579,12 +455,10 @@ function RankingPage({ history, onBack, onReviewWord, onReviewTopSet }) {
             <div className="logo" />
             <div>
               <p className="brandTitle">🧠 弱い単語ランキング</p>
-              <p className="brandSub">タップするとその単語を復習 / ボタンでTOP20復習セット</p>
+              <p className="brandSub">タップでその単語を復習 / ボタンでTOP20復習セット</p>
             </div>
           </div>
-          <button className="pill" onClick={onBack}>
-            ◀ Home
-          </button>
+          <button className="pill" onClick={onBack}>◀ Home</button>
         </div>
 
         <div className="grid" style={{ marginBottom: 10 }}>
@@ -592,24 +466,17 @@ function RankingPage({ history, onBack, onReviewWord, onReviewTopSet }) {
             className="cuteBtn primary"
             onClick={() => onReviewTopSet(weakTop20.map((r) => r.word))}
             disabled={!canTop20}
-            style={{
-              opacity: canTop20 ? 1 : 0.5,
-              cursor: canTop20 ? "pointer" : "not-allowed",
-            }}
+            style={{ opacity: canTop20 ? 1 : 0.5, cursor: canTop20 ? "pointer" : "not-allowed" }}
           >
             🧠 TOP20 復習セット（順番ランダム）
           </button>
         </div>
 
         <div className="listBox">
-          <div style={{ fontSize: 12, color: "#4b4b4b" }}>
-            ※ Unknown率（わからない割合）が高い順（最低2回以上の単語を優先）
-          </div>
+          <div style={{ fontSize: 12, color: "#4b4b4b" }}>※ Unknown率が高い順（最低2回以上を優先）</div>
 
           {weakTop10.length === 0 ? (
-            <div style={{ marginTop: 10, color: "#4b4b4b" }}>
-              まだデータがありません。Swipeで学習するとランキングが出ます。
-            </div>
+            <div style={{ marginTop: 10, color: "#4b4b4b" }}>まだデータがありません。Swipeで学習するとランキングが出ます。</div>
           ) : (
             <div style={{ marginTop: 8 }}>
               {weakTop10.map((r, idx) => (
@@ -623,12 +490,8 @@ function RankingPage({ history, onBack, onReviewWord, onReviewTopSet }) {
                   </div>
                   <div className="rankRight">
                     <div className="pct">{Math.round(r.unknownRate * 100)}%</div>
-                    <div>
-                      💧{r.unknown} / 💖{r.known}（{r.total}回）
-                    </div>
-                    <div style={{ marginTop: 4, fontWeight: 1000, color: "#121212" }}>
-                      ▶ この単語を復習
-                    </div>
+                    <div>💧{r.unknown} / 💖{r.known}（{r.total}回）</div>
+                    <div style={{ marginTop: 4, fontWeight: 1000, color: "#121212" }}>▶ この単語を復習</div>
                   </div>
                 </div>
               ))}
@@ -637,140 +500,7 @@ function RankingPage({ history, onBack, onReviewWord, onReviewTopSet }) {
         </div>
 
         <div className="grid" style={{ marginTop: 12 }}>
-          <button className="cuteBtn" onClick={onBack}>
-            ◀ Home にもどる
-          </button>
-        </div>
-      </div>
-    </CuteShell>
-  );
-}
-
-/* ================== Choice Quiz ================== */
-
-function pickWrongChoices(allWords, correctWord, count = 2) {
-  const correct = normalizeWord(correctWord);
-  const pool = allWords.map(normalizeWord).filter(Boolean).filter((w) => w !== correct);
-  return shuffle(pool).slice(0, count);
-}
-
-function ChoiceQuiz({ listLabel, listWords, onHome }) {
-  const [dir, setDir] = useState("enToJa"); // "enToJa" | "jaToEn"
-  const [qIndex, setQIndex] = useState(0);
-  const [score, setScore] = useState({ ok: 0, ng: 0 });
-
-  const [burstOn, setBurstOn] = useState(false);
-  const [burstSeed, setBurstSeed] = useState(0);
-
-  const allWords = useMemo(() => {
-    // listWords may be DOLCH or FRY_100
-    const unique = Array.from(new Set(listWords.map(normalizeWord).filter(Boolean)));
-    return unique;
-  }, [listWords]);
-
-  const currentWord = allWords[qIndex % Math.max(1, allWords.length)] || "";
-
-  const promptText = useMemo(() => {
-    if (!currentWord) return "";
-    if (dir === "enToJa") return currentWord;
-    return JA[currentWord] ?? "（訳未登録）";
-  }, [currentWord, dir]);
-
-  const correctChoice = useMemo(() => {
-    if (!currentWord) return "";
-    if (dir === "enToJa") return JA[currentWord] ?? "（訳未登録）";
-    return currentWord;
-  }, [currentWord, dir]);
-
-  const choices = useMemo(() => {
-    if (!currentWord) return [];
-    if (dir === "enToJa") {
-      // choices are Japanese strings
-      const wrongWords = pickWrongChoices(allWords, currentWord, 2);
-      const wrongJa = wrongWords.map((w) => JA[w] ?? "（訳未登録）");
-      return shuffle([correctChoice, ...wrongJa]);
-    } else {
-      // choices are English words
-      const wrong = pickWrongChoices(allWords, currentWord, 2);
-      return shuffle([correctChoice, ...wrong]);
-    }
-  }, [allWords, currentWord, correctChoice, dir]);
-
-  const doBurst = () => {
-    setBurstSeed((s) => s + 1);
-    setBurstOn(true);
-    setTimeout(() => setBurstOn(false), 950);
-  };
-
-  const answer = (choice) => {
-    const isOk = String(choice) === String(correctChoice);
-    if (isOk) {
-      setScore((s) => ({ ...s, ok: s.ok + 1 }));
-      doBurst();
-    } else {
-      setScore((s) => ({ ...s, ng: s.ng + 1 }));
-    }
-    setQIndex((i) => i + 1);
-  };
-
-  return (
-    <CuteShell>
-      <SparkBurst show={burstOn} seed={burstSeed} />
-      <div className="panel">
-        <div className="titleRow">
-          <div className="brand">
-            <div className="logo" />
-            <div>
-              <p className="brandTitle">🧩 三択クイズ</p>
-              <p className="brandSub">
-                {listLabel} / {dir === "enToJa" ? "英語 → 日本語" : "日本語 → 英語"}
-              </p>
-            </div>
-          </div>
-
-          <button className="pill" onClick={onHome}>
-            🏠 Home
-          </button>
-        </div>
-
-        <div className="progressRow">
-          <span className="chip">✅ {score.ok}</span>
-          <span className="chip">❌ {score.ng}</span>
-          <button
-            className="pill"
-            onClick={() => setDir((d) => (d === "enToJa" ? "jaToEn" : "enToJa"))}
-          >
-            🔁 切替
-          </button>
-        </div>
-
-        <div className="wordCard" style={{ height: 260 }}>
-          <div className="wordText" style={{ fontSize: dir === "enToJa" ? 72 : 44 }}>
-            {promptText}
-          </div>
-          <div className="swipeHint" style={{ justifyContent: "center" }}>
-            <span>答えをタップしてね</span>
-          </div>
-        </div>
-
-        <div className="grid" style={{ marginTop: 12 }}>
-          {choices.map((c, idx) => (
-            <button key={`${c}_${idx}`} className="cuteBtn" onClick={() => answer(c)}>
-              {c}
-            </button>
-          ))}
-        </div>
-
-        <div className="toolbar">
-          {dir === "enToJa" ? (
-            <button className="pill" onClick={() => currentWord && speak(currentWord, "en-US")}>
-              🔊 英語
-            </button>
-          ) : (
-            <button className="pill" onClick={() => currentWord && speak(currentWord, "en-US")}>
-              🔊 英語（答え）
-            </button>
-          )}
+          <button className="cuteBtn" onClick={onBack}>◀ Home にもどる</button>
         </div>
       </div>
     </CuteShell>
@@ -793,10 +523,8 @@ function SwipeGame({
   const [index, setIndex] = useState(0);
   const [known, setKnown] = useState([]);
   const [unknown, setUnknown] = useState([]);
-
   const [showJa, setShowJa] = useState(false);
   const [autoSpeak, setAutoSpeak] = useState(false);
-
   const [burstOn, setBurstOn] = useState(false);
   const [burstSeed, setBurstSeed] = useState(0);
 
@@ -842,14 +570,9 @@ function SwipeGame({
     trackMouse: true,
   });
 
-  const progressPct = words.length
-    ? Math.min(100, Math.round(((index + 1) / words.length) * 100))
-    : 0;
+  const progressPct = words.length ? Math.min(100, Math.round(((index + 1) / words.length) * 100)) : 0;
 
   if (done) {
-    const isReviewWord = !!reviewWord;
-    const isReviewSet = Array.isArray(reviewSetWords) && reviewSetWords.length > 0;
-
     return (
       <CuteShell>
         <div className="panel">
@@ -859,9 +582,9 @@ function SwipeGame({
               <div>
                 <p className="brandTitle">がんばったね！🎉</p>
                 <p className="brandSub">
-                  {isReviewWord
+                  {reviewWord
                     ? `Review: ${reviewWord}`
-                    : isReviewSet
+                    : Array.isArray(reviewSetWords) && reviewSetWords.length > 0
                     ? `Review Set: TOP${reviewSetWords.length}`
                     : `List: ${String(titleLabel).toUpperCase()}`}
                 </p>
@@ -871,22 +594,13 @@ function SwipeGame({
           </div>
 
           <div style={{ display: "flex", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
-            <span className="chip">
-              💖 わかる：<strong>{known.length}</strong>
-            </span>
-            <span className="chip">
-              💧 わからない：<strong>{unknown.length}</strong>
-            </span>
+            <span className="chip">💖 わかる：<strong>{known.length}</strong></span>
+            <span className="chip">💧 わからない：<strong>{unknown.length}</strong></span>
           </div>
 
           <div className="grid" style={{ marginTop: 14 }}>
-            <button className="cuteBtn primary" onClick={onNextSet20}>
-              🌟 Another 20
-            </button>
-
-            <button className="cuteBtn" onClick={onHome}>
-              🏠 Home にもどる
-            </button>
+            <button className="cuteBtn primary" onClick={onNextSet20}>🌟 Another 20</button>
+            <button className="cuteBtn" onClick={onHome}>🏠 Home にもどる</button>
           </div>
         </div>
       </CuteShell>
@@ -904,20 +618,18 @@ function SwipeGame({
       <SparkBurst show={burstOn} seed={burstSeed} />
 
       <div className="panel">
-        <div className="progressRow">
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
           <span className="chip">📚 {headerLabel}</span>
-          <div className="miniStat">
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <span className="chip">💖 {known.length}</span>
             <span className="chip">💧 {unknown.length}</span>
           </div>
         </div>
 
-        <div className="progressRow">
-          <span className="chip">
-            {index + 1} / {words.length}
-          </span>
-          <div className="bar" aria-label="progress">
-            <div style={{ width: `${progressPct}%` }} />
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 10, alignItems: "center" }}>
+          <span className="chip">{index + 1} / {words.length}</span>
+          <div style={{ flex: 1, minWidth: 220, height: 10, borderRadius: 999, background: "rgba(0,0,0,.08)", overflow: "hidden", border: "2px solid rgba(0,0,0,.08)" }}>
+            <div style={{ height: "100%", borderRadius: 999, background: "linear-gradient(90deg, rgba(255,122,182,.95), rgba(127,231,214,.9))", width: `${progressPct}%` }} />
           </div>
           <span className="chip">{progressPct}%</span>
         </div>
@@ -932,55 +644,145 @@ function SwipeGame({
         </div>
 
         <div className="grid2" style={{ marginTop: 12 }}>
-          <button className="pill" onClick={onHome}>
-            🏠 Home
-          </button>
-          <button className="pill" onClick={onAddMore20}>
-            ➕ Another 20
-          </button>
+          <button className="pill" onClick={onHome}>🏠 Home</button>
+          <button className="pill" onClick={onAddMore20}>➕ Another 20</button>
         </div>
 
         <div className="grid2" style={{ marginTop: 12 }}>
-          <button className="cuteBtn" onClick={() => handleAnswer("unknown")}>
-            💧 わからない
-          </button>
-          <button className="cuteBtn primary" onClick={() => handleAnswer("known")}>
-            💖 わかる
-          </button>
+          <button className="cuteBtn" onClick={() => handleAnswer("unknown")}>💧 わからない</button>
+          <button className="cuteBtn primary" onClick={() => handleAnswer("known")}>💖 わかる</button>
         </div>
 
         <div className="toolbar">
-          <button className={`pill ${showJa ? "on" : ""}`} onClick={() => setShowJa((v) => !v)}>
-            🈶 日本語訳 {showJa ? "ON" : "OFF"}
-          </button>
-
-          <button className="pill" onClick={() => current && speak(current, "en-US")}>
-            🔊 英語
-          </button>
-
-          <button className={`pill ${autoSpeak ? "on" : ""}`} onClick={() => setAutoSpeak((v) => !v)}>
-            🎧 自動読み上げ {autoSpeak ? "ON" : "OFF"}
-          </button>
+          <button className="pill" onClick={() => setShowJa((v) => !v)}>🈶 日本語訳 {showJa ? "ON" : "OFF"}</button>
+          <button className="pill" onClick={() => current && speak(current, "en-US")}>🔊 英語</button>
+          <button className="pill" onClick={() => setAutoSpeak((v) => !v)}>🎧 自動読み上げ {autoSpeak ? "ON" : "OFF"}</button>
         </div>
       </div>
     </CuteShell>
   );
 }
 
-/* ================== App ================== */
+/* ================== ChoiceGame（切替ボタン付き・Hooks安定） ================== */
 
-export default function App() {
-  // home / ranking / game / choice
-  const [mode, setMode] = useState("home");
+function ChoiceGame({ onHome }) {
+  // ✅ 初回だけ問題セット固定（レンダー毎に変わると混乱するので useMemo）
+  const quizWords = useMemo(() => shuffle(DOLCH).slice(0, 20), []);
+  const [index, setIndex] = useState(0);
+  const [score, setScore] = useState(0);
+  const [direction, setDirection] = useState("enToJa"); // enToJa / jaToEn
 
-  // "dolch" / "fry" / "reviewWord" / "reviewSet"
-  const [playType, setPlayType] = useState("dolch");
+  const current = quizWords[index];
+
+  // 終了画面
+  if (!current) {
+    return (
+      <CuteShell>
+        <div className="panel">
+          <div className="titleRow">
+            <div className="brand">
+              <div className="logo" />
+              <div>
+                <p className="brandTitle">🎉 三択クイズ 結果</p>
+                <p className="brandSub">おつかれさま！</p>
+              </div>
+            </div>
+            <button className="pill" onClick={onHome}>◀ Home</button>
+          </div>
+
+          <div className="listBox" style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 18, fontWeight: 1000 }}>正解数</div>
+            <div style={{ fontSize: 36, fontWeight: 1000, marginTop: 6 }}>
+              {score} / {quizWords.length}
+            </div>
+          </div>
+
+          <div className="grid" style={{ marginTop: 12 }}>
+            <button
+              className="cuteBtn primary"
+              onClick={() => {
+                setIndex(0);
+                setScore(0);
+              }}
+            >
+              🔁 もう一度（同じ20問）
+            </button>
+            <button className="cuteBtn" onClick={onHome}>
+              🏠 Home にもどる
+            </button>
+          </div>
+        </div>
+      </CuteShell>
+    );
+  }
+
+  const correctJa = JA[current] || "（訳未登録）";
+  const questionText = direction === "enToJa" ? current : correctJa;
+  const correctAnswer = direction === "enToJa" ? correctJa : current;
+
+  // 選択肢候補プール（訳が少ない/空でも落ちないようにガード）
+  const wrongPool = direction === "enToJa"
+    ? Object.values(JA).filter(Boolean)
+    : DOLCH.map(normalizeWord).filter(Boolean);
+
+  const choices = useMemo(() => {
+    const wrongs = shuffle(wrongPool).filter((x) => x !== correctAnswer).slice(0, 2);
+    return shuffle([correctAnswer, ...wrongs]);
+  }, [correctAnswer, direction]); // wrongPoolは固定に近いのでOK
+
+  const handleAnswer = (choice) => {
+    if (choice === correctAnswer) setScore((s) => s + 1);
+    setIndex((i) => i + 1);
+  };
+
+  return (
+    <CuteShell>
+      <div className="panel">
+        <div className="titleRow">
+          <div className="brand">
+            <div className="logo" />
+            <div>
+              <p className="brandTitle">🧩 三択クイズ</p>
+              <p className="brandSub">タップして答えてね（{index + 1}/{quizWords.length}）</p>
+            </div>
+          </div>
+          <button className="pill" onClick={onHome}>◀ Home</button>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
+          <span className="chip">🏆 Score: <strong>{score}</strong></span>
+          <button className="pill" onClick={() => setDirection((d) => (d === "enToJa" ? "jaToEn" : "enToJa"))}>
+            🔄 {direction === "enToJa" ? "英語 → 日本語" : "日本語 → 英語"}
+          </button>
+        </div>
+
+        <div className="wordCard" style={{ height: 220 }}>
+          <div className="wordText" style={{ fontSize: 52 }}>{questionText}</div>
+        </div>
+
+        <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 12 }}>
+          {choices.map((c, i) => (
+            <button key={i} className="cuteBtn" onClick={() => handleAnswer(c)}>
+              {c}
+            </button>
+          ))}
+        </div>
+      </div>
+    </CuteShell>
+  );
+}
+
+/* ================== AppInner（Hooks順を絶対に崩さない） ================== */
+
+function AppInner() {
+  // ✅ hooksは必ずここで全部固定順に呼ぶ（途中return禁止）
+  const [mode, setMode] = useState("home"); // home / ranking / game / choice
+  const [playType, setPlayType] = useState("dolch"); // dolch / fry / reviewWord / reviewSet
   const [reviewWord, setReviewWord] = useState(null);
   const [reviewSetWords, setReviewSetWords] = useState([]);
 
   const [words, setWords] = useState([]);
   const [gameKey, setGameKey] = useState(0);
-
   const [history, setHistory] = useState(() => loadHistory());
 
   const baseList = useMemo(() => (playType === "dolch" ? DOLCH : FRY_100), [playType]);
@@ -990,11 +792,7 @@ export default function App() {
   }, [history]);
 
   const bumpSession = () => {
-    setHistory((h) => ({
-      ...h,
-      sessions: h.sessions + 1,
-      lastStudiedAt: new Date().toISOString(),
-    }));
+    setHistory((h) => ({ ...h, sessions: h.sessions + 1, lastStudiedAt: new Date().toISOString() }));
   };
 
   const startNormal = (selected) => {
@@ -1050,16 +848,11 @@ export default function App() {
       setWords((prev) => [...prev, ...repeatWord(reviewWord, 20)]);
       return;
     }
-
     if (playType === "reviewSet" && reviewSetWords.length > 0) {
       setWords((prev) => [...prev, ...shuffle(reviewSetWords)]);
       return;
     }
-
-    setWords((prev) => {
-      const more = pickMore(baseList, prev, 20);
-      return [...prev, ...more];
-    });
+    setWords((prev) => [...prev, ...pickMore(baseList, prev, 20)]);
   };
 
   const nextSet20 = () => {
@@ -1070,7 +863,6 @@ export default function App() {
       bumpSession();
       return;
     }
-
     if (playType === "reviewSet" && reviewSetWords.length > 0) {
       setWords(shuffle(reviewSetWords));
       setGameKey((k) => k + 1);
@@ -1078,9 +870,7 @@ export default function App() {
       bumpSession();
       return;
     }
-
-    const next20 = pickMore(baseList, [], 20);
-    setWords(next20);
+    setWords(pickMore(baseList, [], 20));
     setGameKey((k) => k + 1);
     setMode("game");
     bumpSession();
@@ -1098,11 +888,7 @@ export default function App() {
         unknown: prev.unknown + (type === "unknown" ? 1 : 0),
         last: now,
       };
-      return {
-        ...h,
-        lastStudiedAt: now,
-        wordStats: { ...(h.wordStats || {}), [w]: next },
-      };
+      return { ...h, lastStudiedAt: now, wordStats: { ...(h.wordStats || {}), [w]: next } };
     });
   };
 
@@ -1112,6 +898,7 @@ export default function App() {
     saveHistory(empty);
   };
 
+  // ✅ ここから下で画面分岐（hooksはもう全部呼び終わってるので安全）
   if (mode === "ranking") {
     return (
       <RankingPage
@@ -1124,15 +911,7 @@ export default function App() {
   }
 
   if (mode === "choice") {
-    // Default choice list: Dolch + Fry merged (more fun). You can change later.
-    const merged = useMemo(() => [...DOLCH, ...FRY_100], []);
-    return (
-      <ChoiceQuiz
-        listLabel="DOLCH+FRY"
-        listWords={merged}
-        onHome={() => setMode("home")}
-      />
-    );
+    return <ChoiceGame onHome={() => setMode("home")} />;
   }
 
   if (mode === "home") {
@@ -1147,13 +926,9 @@ export default function App() {
   }
 
   const titleLabel =
-    playType === "fry"
-      ? "FRY"
-      : playType === "dolch"
-      ? "DOLCH"
-      : playType === "reviewWord"
-      ? "REVIEW"
-      : "REVIEW SET";
+    playType === "fry" ? "FRY" :
+    playType === "dolch" ? "DOLCH" :
+    playType === "reviewWord" ? "REVIEW" : "REVIEW SET";
 
   return (
     <SwipeGame
@@ -1168,5 +943,15 @@ export default function App() {
       onLogKnown={(w) => logWord(w, "known")}
       onLogUnknown={(w) => logWord(w, "unknown")}
     />
+  );
+}
+
+/* ================== App (single default export) ================== */
+
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <AppInner />
+    </ErrorBoundary>
   );
 }
