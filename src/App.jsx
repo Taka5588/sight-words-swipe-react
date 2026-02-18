@@ -379,7 +379,42 @@ function CuteShell({ children }) {
           0%{ transform: translate(var(--dx), 0px) scale(1) rotate(0deg); opacity: 1; }
           100%{ transform: translate(var(--dx), calc(-1 * var(--dy))) scale(.65) rotate(40deg); opacity: 0; }
         }
-      `}</style>
+      `
+      /* ===== Choice FX ===== */
+.fx-correct{
+  position: relative;
+  overflow: hidden;
+}
+.fx-correct::after{
+  content:"";
+  position:absolute;
+  inset:-40px;
+  background: radial-gradient(circle at 30% 30%, rgba(255,122,182,.35), transparent 55%),
+              radial-gradient(circle at 70% 70%, rgba(255,182,216,.28), transparent 60%);
+  animation: correctGlow .45s ease-out;
+  pointer-events:none;
+}
+
+@keyframes correctGlow{
+  0%{ opacity:0; transform: scale(.98); }
+  25%{ opacity:1; transform: scale(1); }
+  100%{ opacity:0; transform: scale(1.02); }
+}
+
+.fx-wrong{
+  animation: wrongShake .45s ease-in-out;
+}
+@keyframes wrongShake{
+  0%{ transform: translateX(0); }
+  12%{ transform: translateX(-6px); }
+  25%{ transform: translateX(6px); }
+  37%{ transform: translateX(-5px); }
+  50%{ transform: translateX(5px); }
+  62%{ transform: translateX(-3px); }
+  75%{ transform: translateX(3px); }
+  100%{ transform: translateX(0); }
+}
+      }</style>
       {children}
     </div>
   );
@@ -677,6 +712,7 @@ function ChoiceGame({ onHome }) {
 
   const [index, setIndex] = useState(0);
   const [score, setScore] = useState(0);
+  const [feedback, setFeedback] = useState(null); // "correct" | "wrong" | null
 
   const current = questions[index] ?? null;
 
@@ -695,10 +731,28 @@ function ChoiceGame({ onHome }) {
   const total = questions.length;
 
   const handleAnswer = (choice) => {
-    if (!current) return;
-    if (choice === correct) setScore((s) => s + 1);
+  const isCorrect = choice === correct;
+
+  if (isCorrect) {
+    setScore((s) => s + 1);
+    setFeedback("correct");
+  } else {
+    setFeedback("wrong");
+  }
+if (isCorrect) {
+  setScore((s) => s + 1);
+  setFeedback("correct");
+  playSfx("correct");
+} else {
+  setFeedback("wrong");
+  playSfx("wrong");
+}
+  // 0.45秒だけ演出してから次の問題へ
+  setTimeout(() => {
+    setFeedback(null);
     setIndex((i) => i + 1);
-  };
+  }, 450);
+};
 
   const restart = () => {
     setIndex(0);
@@ -710,7 +764,8 @@ function ChoiceGame({ onHome }) {
   if (!current) {
     return (
       <CuteShell>
-        <div className="panel">
+        <div className={`panel ${feedback === "correct" ? "fx-correct" : ""} ${feedback === "wrong" ? "fx-wrong" : ""}`}>
+
           <div className="titleRow">
             <div className="brand">
               <div className="logo" />
@@ -741,7 +796,23 @@ function ChoiceGame({ onHome }) {
       </CuteShell>
     );
   }
-
+function playSfx(name){
+  try{
+    const a = new Audio(`/sfx/${name}.mp3`);
+    a.volume = 0.6;
+    a.currentTime = 0;
+    a.play();
+  }catch{
+    // ignore
+  }
+}
+useEffect(() => {
+  // 20問終了したタイミング
+  if (index >= 20) {
+    if (score === 20) playSfx("perfect");
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [index]);
   return (
     <CuteShell>
       <div className="panel">
@@ -776,7 +847,6 @@ function ChoiceGame({ onHome }) {
     </CuteShell>
   );
 }
-
 
 /* ================== AppInner（Hooks順を絶対に崩さない） ================== */
 
